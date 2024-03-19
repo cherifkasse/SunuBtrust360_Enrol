@@ -1,0 +1,44 @@
+spring:
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url: jdbc:sqlite:D:/bdd/EnrolDB
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+application:
+  security:
+    jwt:
+      secret-key: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      expiration: 86400000 # 1 jour
+      refresh-token:
+        expiration: 604800000 # 7 jours
+
+    keystorePath: C:\\Users\\ckasse\\Desktop\\EJBCA_certificates\\api_keystore.jks
+    keystorePassword: foo123
+    trustorePath: C:\\Users\\ckasse\\Desktop\\EJBCA_certificates\\api_trustore.jks
+    trustorePassword: foo123
+    managementCertPath: C:\\Users\\ckasse\\Desktop\\EJBCA_certificates\\management.pem
+    managementCrtPath: C:\\Users\\ckasse\\Desktop\\EJBCA_certificates\\management.crt
+    superAdminCertPath: C:\\Users\\ckasse\\Desktop\\EJBCA_certificates\\SuperAdmin.crt
+    superAdminCertPassword: password
+    superAdminKeyPath: C:\\Users\\ckasse\\Desktop\\EJBCA_certificates\\SuperAdmin2.key
+    superAdminKeyPassword: password
+    superAdminP12Path: C:\\Users\\ckasse\\Desktop\\EJBCA_certificates\\SuperAdmin.p12
+
+
+
+# Chemin vers le keystore
+server:
+  ssl:
+    key-store:
+      classpath: api_keystore.jks
+      password: foo123
+      key-store-type: JKS
+  # Chemin vers le truststore
+    trust-store:
+      classpath: api_truststore.jks
+      password: foo123
+      store-type: JKS
