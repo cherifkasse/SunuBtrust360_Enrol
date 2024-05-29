@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour testKey complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="testKey"&gt;
@@ -40,7 +40,7 @@ public class TestKey {
     protected String authCode;
 
     /**
-     * Obtient la valeur de la propriété signerId.
+     * Obtient la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public int getSignerId() {
@@ -48,7 +48,7 @@ public class TestKey {
     }
 
     /**
-     * Définit la valeur de la propriété signerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public void setSignerId(int value) {
@@ -56,7 +56,7 @@ public class TestKey {
     }
 
     /**
-     * Obtient la valeur de la propriété alias.
+     * Obtient la valeur de la propriï¿½tï¿½ alias.
      * 
      * @return
      *     possible object is
@@ -68,7 +68,7 @@ public class TestKey {
     }
 
     /**
-     * Définit la valeur de la propriété alias.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ alias.
      * 
      * @param value
      *     allowed object is
@@ -80,7 +80,7 @@ public class TestKey {
     }
 
     /**
-     * Obtient la valeur de la propriété authCode.
+     * Obtient la valeur de la propriï¿½tï¿½ authCode.
      * 
      * @return
      *     possible object is
@@ -92,7 +92,7 @@ public class TestKey {
     }
 
     /**
-     * Définit la valeur de la propriété authCode.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ authCode.
      * 
      * @param value
      *     allowed object is

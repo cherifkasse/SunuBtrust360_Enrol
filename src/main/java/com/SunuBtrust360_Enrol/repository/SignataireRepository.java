@@ -21,7 +21,11 @@ public interface SignataireRepository extends JpaRepository<Signataire, Integer>
 
     List<Signataire> findByCleDeSignature(String cle);
 
+
     boolean existsByNomSignataire(String nom);
+    boolean existsByEmail(String email);
+    boolean existsByNomApplication(String app);
+    boolean existsByNomEntreprise(String entr);
 
     // Méthode personnalisée pour la recherche
 

@@ -1,5 +1,6 @@
 package com.SunuBtrust360_Enrol.models;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -11,11 +12,12 @@ import jakarta.validation.constraints.NotBlank;
  * @created 13/09/2023/09/2023
  */
 @Entity
-@Table(name="signataire",
+/*@Table(name="signataire",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = "email")
         }
-)
+)*/
+@Tag(name = "Signataire")
 public class Signataire {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,11 +30,11 @@ public class Signataire {
     private String nomSignataire;
     private String categorie;
    // private String application_rattachee;
-    private String nom_application;
+    private String nomApplication;
     @NotBlank(message = "Le code pin ne doit pas etre vide!")
     private String code_pin;
     @NotBlank(message = "L'adresse mail ne doit pas etre vide!")
-    @Column(unique=true)
+   // @Column(unique=true)
     private String email;
 
     private String dateCreation;
@@ -41,7 +43,7 @@ public class Signataire {
     private String dateRenouvellement;
 
     @NotBlank(message = "Veuillez renseigner le nom de l'entreprise!")
-    private String nom_entreprise;
+    private String nomEntreprise;
     private String cleDeSignature;
 
     private String signerKey;
@@ -90,12 +92,12 @@ public class Signataire {
         this.application_rattachee = application_rattachee;
     }*/
 
-    public String getNom_application() {
-        return nom_application;
+    public String getNomApplication() {
+        return nomApplication;
     }
 
-    public void setNom_application(String nom_application) {
-        this.nom_application = nom_application;
+    public void setNomApplication(String nom_application) {
+        this.nomApplication = nom_application;
     }
 
     public String getDateCreation() {
@@ -147,12 +149,12 @@ public class Signataire {
         this.dateRenouvellement = dateRenouvellement;
     }
 
-    public String getNom_entreprise() {
-        return nom_entreprise;
+    public String getNomEntreprise() {
+        return nomEntreprise;
     }
 
-    public void setNom_entreprise(String nom_entreprise) {
-        this.nom_entreprise = nom_entreprise;
+    public void setNomEntreprise(String nom_entreprise) {
+        this.nomEntreprise = nom_entreprise;
     }
 
 }

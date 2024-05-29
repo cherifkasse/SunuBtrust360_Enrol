@@ -11,6 +11,7 @@ import com.SunuBtrust360_Enrol.repository.RoleRepository;
 import com.SunuBtrust360_Enrol.repository.UserRepository;
 import com.SunuBtrust360_Enrol.security.jwt.JwtUtils;
 import com.SunuBtrust360_Enrol.security.services.UserDetailsImpl;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +44,7 @@ import java.util.stream.Collectors;
 
 //@CrossOrigin(origins = {"http://localhost:8080","http://localhost:4200"})
 @RequestMapping("/")
-
+@Hidden
 public class AuthController {
 
     @Autowired

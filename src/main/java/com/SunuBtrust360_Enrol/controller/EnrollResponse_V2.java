@@ -1,5 +1,8 @@
 package com.SunuBtrust360_Enrol.controller;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+
 import java.util.List;
 
 /**
@@ -7,12 +10,15 @@ import java.util.List;
  * @project SunuBtrust360_Enrol
  * @created 05/01/2024/01/2024 - 15:57
  */
+@ApiModel("Informations du signataire à fournir.")
 public class EnrollResponse_V2 {
     private String certificate;
     private String serial_number;
     private String response_format;
     private List<String> certificate_chain;
+    @ApiModelProperty(notes = "Code pin ", example = "123456")
     private String codePin;
+    @ApiModelProperty(notes = "Id signer ", example = "123")
     private Integer id_signer;
 
     public Integer getId_signer() {

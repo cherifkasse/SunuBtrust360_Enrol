@@ -11,7 +11,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour queryArchive complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schema suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="queryArchive"&gt;
@@ -48,7 +48,7 @@ public class QueryArchive {
     protected boolean includeData;
 
     /**
-     * Obtient la valeur de la propriété startIndex.
+     * Obtient la valeur de la propriï¿½tï¿½ startIndex.
      * 
      */
     public int getStartIndex() {
@@ -56,7 +56,7 @@ public class QueryArchive {
     }
 
     /**
-     * Définit la valeur de la propriété startIndex.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ startIndex.
      * 
      */
     public void setStartIndex(int value) {
@@ -64,7 +64,7 @@ public class QueryArchive {
     }
 
     /**
-     * Obtient la valeur de la propriété max.
+     * Obtient la valeur de la propriï¿½tï¿½ max.
      * 
      */
     public int getMax() {
@@ -72,7 +72,7 @@ public class QueryArchive {
     }
 
     /**
-     * Définit la valeur de la propriété max.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ max.
      * 
      */
     public void setMax(int value) {
@@ -138,7 +138,7 @@ public class QueryArchive {
     }
 
     /**
-     * Obtient la valeur de la propriété includeData.
+     * Obtient la valeur de la propriï¿½tï¿½ includeData.
      * 
      */
     public boolean isIncludeData() {
@@ -146,7 +146,7 @@ public class QueryArchive {
     }
 
     /**
-     * Définit la valeur de la propriété includeData.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ includeData.
      * 
      */
     public void setIncludeData(boolean value) {

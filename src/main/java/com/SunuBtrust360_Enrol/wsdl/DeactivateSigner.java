@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour deactivateSigner complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="deactivateSigner"&gt;
@@ -34,7 +34,7 @@ public class DeactivateSigner {
     protected int signerId;
 
     /**
-     * Obtient la valeur de la propriété signerId.
+     * Obtient la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public int getSignerId() {
@@ -42,7 +42,7 @@ public class DeactivateSigner {
     }
 
     /**
-     * Définit la valeur de la propriété signerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public void setSignerId(int value) {

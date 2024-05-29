@@ -10,7 +10,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour queryCondition complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schema suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="queryCondition"&gt;
@@ -42,7 +42,7 @@ public class QueryCondition {
     protected String value;
 
     /**
-     * Obtient la valeur de la propriété column.
+     * Obtient la valeur de la propriï¿½tï¿½ column.
      * 
      * @return
      *     possible object is
@@ -54,7 +54,7 @@ public class QueryCondition {
     }
 
     /**
-     * Définit la valeur de la propriété column.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ column.
      * 
      * @param value
      *     allowed object is
@@ -66,7 +66,7 @@ public class QueryCondition {
     }
 
     /**
-     * Obtient la valeur de la propriété operator.
+     * Obtient la valeur de la propriï¿½tï¿½ operator.
      * 
      * @return
      *     possible object is
@@ -78,7 +78,7 @@ public class QueryCondition {
     }
 
     /**
-     * Définit la valeur de la propriété operator.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ operator.
      * 
      * @param value
      *     allowed object is
@@ -90,7 +90,7 @@ public class QueryCondition {
     }
 
     /**
-     * Obtient la valeur de la propriété value.
+     * Obtient la valeur de la propriï¿½tï¿½ value.
      * 
      * @return
      *     possible object is
@@ -102,7 +102,7 @@ public class QueryCondition {
     }
 
     /**
-     * Définit la valeur de la propriété value.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ value.
      * 
      * @param value
      *     allowed object is

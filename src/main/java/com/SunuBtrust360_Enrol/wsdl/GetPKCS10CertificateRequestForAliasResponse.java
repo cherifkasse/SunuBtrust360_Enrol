@@ -10,7 +10,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour getPKCS10CertificateRequestForAliasResponse complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="getPKCS10CertificateRequestForAliasResponse"&gt;
@@ -36,7 +36,7 @@ public class GetPKCS10CertificateRequestForAliasResponse {
     protected Base64SignerCertReqData _return;
 
     /**
-     * Obtient la valeur de la propriété return.
+     * Obtient la valeur de la propriï¿½tï¿½ return.
      * 
      * @return
      *     possible object is
@@ -48,7 +48,7 @@ public class GetPKCS10CertificateRequestForAliasResponse {
     }
 
     /**
-     * Définit la valeur de la propriété return.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ return.
      * 
      * @param value
      *     allowed object is

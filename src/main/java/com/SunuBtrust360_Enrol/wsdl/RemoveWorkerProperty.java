@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour removeWorkerProperty complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schema suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="removeWorkerProperty"&gt;
@@ -37,7 +37,7 @@ public class RemoveWorkerProperty {
     protected String key;
 
     /**
-     * Obtient la valeur de la propriété workerId.
+     * Obtient la valeur de la propriï¿½tï¿½ workerId.
      * 
      */
     public int getWorkerId() {
@@ -45,7 +45,7 @@ public class RemoveWorkerProperty {
     }
 
     /**
-     * Définit la valeur de la propriété workerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ workerId.
      * 
      */
     public void setWorkerId(int value) {
@@ -53,7 +53,7 @@ public class RemoveWorkerProperty {
     }
 
     /**
-     * Obtient la valeur de la propriété key.
+     * Obtient la valeur de la propriï¿½tï¿½ key.
      * 
      * @return
      *     possible object is
@@ -65,7 +65,7 @@ public class RemoveWorkerProperty {
     }
 
     /**
-     * Définit la valeur de la propriété key.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ key.
      * 
      * @param value
      *     allowed object is

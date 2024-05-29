@@ -15,6 +15,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.apache.cxf.configuration.jsse.TLSClientParameters;
 import org.apache.cxf.frontend.ClientProxy;
@@ -44,6 +49,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.ws.client.core.WebServiceTemplate;
 import org.springframework.ws.transport.http.HttpComponentsMessageSender;
@@ -77,8 +83,10 @@ import java.util.regex.Pattern;
  */
 @RestController
 @RequestMapping("/signataire/")
-@CrossOrigin(origins = "http://localhost:8282")
+@CrossOrigin(origins = "http://localhost:8080")
 @Component
+@Tag(name = "Signataire")
+@SecurityRequirement(name = "bearerAuth")
 public class SignataireController {
 
 
@@ -111,6 +119,8 @@ public class SignataireController {
     /////////////////////////////////CSR/////////////////////////////////////////////////////////////////////////////////////
     @Value("${application.security.jwt.secret-key}")
     private String jwtSecret;
+
+
 
     public SignataireController(SignataireRepository signataireRepository, WorkerRepository workerRepository) {
         this.signataireRepository = signataireRepository;
@@ -177,6 +187,7 @@ public class SignataireController {
     //Pkcs10CertReqInfo csrInfo= new Pkcs10CertReqInfo();
 
     //////////////////////////AFFECTATION UTILISATEUR//////////////////////////////////////////////
+    @Operation(hidden = true)
     @PostMapping("affectation/{cleDeSignature}/{nom_app}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> affectationSignataire(@PathVariable String cleDeSignature, @PathVariable String nom_app) {
@@ -192,6 +203,7 @@ public class SignataireController {
 
     ////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////ENROLLER SIGNATAIRE AVEC LA PEREMIERE VERSION//////////////////////////////////////////////////////
+    @Operation(hidden = true)
     @PostMapping("enroll")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<?> enrollSignataire(@Valid @RequestBody SignataireRequest signataireRequest) throws Exception {
@@ -211,14 +223,14 @@ public class SignataireController {
         signataire.setNomSignataire(signataireRequest.getNomSignataire());
         signataire.setCategorie(signataireRequest.getCategorie());
        // signataire.setApplication_rattachee(separer_idapp_nomapp(signataireRequest.getTrustedApp())[0]);
-        signataire.setNom_application(separer_idapp_nomapp(signataireRequest.getTrustedApp())[1]);
+        signataire.setNomApplication(separer_idapp_nomapp(signataireRequest.getTrustedApp())[1]);
         signataire.setCode_pin(encrypterPin(signataireRequest.getCode_pin()));
         /*if (signataireRepository.findByEmail(signataireRequest.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body("Vérifiez si vous essayez d'enroller une personne déja existante");
         }*/
 
         signataire.setEmail(signataireRequest.getEmail());
-        signataire.setNom_entreprise(signataireRequest.getNom_entreprise());
+        signataire.setNomEntreprise(signataireRequest.getNom_entreprise());
         signataire.setCleDeSignature(cle_de_signature);
 
         //////////////////////////////////////////////////////////////////////
@@ -257,81 +269,100 @@ public class SignataireController {
     public ResponseEntity<?> renouvellerSignataire(@Valid @RequestBody SignataireRequest signataireRequest) throws Exception {
         GestSignataire gst = new GestSignataire();
         ObjectMapper objectMapper = new ObjectMapper();
-        String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
-        String cle_de_signature = "CLE_" + signataireRequest.getNomSignataire().toUpperCase().replaceAll("\\s+", "_") + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
+        String cle_de_signature = "";
+        String aliasCle = cle_de_signature;
 
-        String aliasCle = prop.getProperty("aliasCle") + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_");
-        List<Worker> workerList=workerRepository.findWorkersByNomWorker(signataireRequest.getTrustedApp());
-        Worker worker= workerList.get(0);
+        try {
+            if (signataireRepository.existsByNomSignataire(signataireRequest.getNomSignataire())
+                    && signataireRepository.existsByEmail(signataireRequest.getEmail())
+                    && signataireRepository.existsByNomEntreprise(signataireRequest.getNom_entreprise())
+                    && signataireRepository.existsByNomApplication(signataireRequest.getTrustedApp())) {
+                List<Signataire> signataireList = signataireRepository.findByNomSignataire(signataireRequest.getNomSignataire());
+                Signataire signer = signataireList.get(0);
+                cle_de_signature = signer.getCleDeSignature();
+                aliasCle = signer.getSignerKey();
+            }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
-        Signataire signataire = new Signataire();
-        //////////////Infos pour le signataire/////////////////////////////////
-        if (!validateEmail(signataireRequest.getEmail())) {
-            return ResponseEntity.badRequest().body("Vérifiez le format de l'email");
+            String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
+            List<Worker> workerList = workerRepository.findWorkersByNomWorker(signataireRequest.getTrustedApp());
+            Worker worker = workerList.get(0);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            if (!validateEmail(signataireRequest.getEmail())) {
+                String badRequestMessage = "Vérifiez le format de l'email";
+                logger.warn(badRequestMessage);
+                return ResponseEntity.badRequest().body(badRequestMessage);
+            }
+
+            Signataire signataire = new Signataire();
+            signataire.setNomSignataire(signataireRequest.getNomSignataire());
+            signataire.setCategorie(signataireRequest.getCategorie());
+            signataire.setNomApplication(signataireRequest.getTrustedApp());
+            signataire.setCode_pin(encrypterPin(signataireRequest.getCode_pin()));
+            signataire.setEmail(signataireRequest.getEmail());
+            signataire.setNomEntreprise(signataireRequest.getNom_entreprise());
+            signataire.setCleDeSignature(cle_de_signature);
+
+            ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
+            obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setUsername(username);
+            obtenirCertRequest.setInclude_chain(true);
+            obtenirCertRequest.setPassword(signataireRequest.getPassword());
+            String subjectDN = "CN=" + signataireRequest.getNomSignataire() + ",O=" + signataireRequest.getNom_entreprise() + ",C=SN";
+
+            deleteKeySigner(worker.getIdWorker(), aliasCle);
+            String signKey = generateCryptoToken(aliasCle);
+            signataire.setSignerKey(aliasCle);
+            obtenirCertRequest.setCertificate_request(webServiceConnect(subjectDN, signKey));
+
+            HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
+            RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
+            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+
+            EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse.class);
+            List<String> certificateListPem = new ArrayList<>();
+            certificateListPem.add(enrollResponse.getCertificate());
+            importChaine(certificateListPem, aliasCle);
+
+            HttpStatus statusCode = (HttpStatus) response.getStatusCode();
+            int statusCodeValue = statusCode.value();
+
+            if (statusCodeValue == 201) {
+                Date date_creation = new Date();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                signataire.setDateCreation(sdf.format(date_creation));
+                signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                gst.updateRenouveler(signataire.getCleDeSignature(), signataire.getCode_pin(), sdf.format(date_creation), calculerDateExpiration2(sdf.format(date_creation)));
+                logger.info("Renouvellement réussi avec succès : " + response.getBody());
+            } else {
+                logger.error("Renouvellement echoué: " + response.getBody());
+            }
+
+            return response;
+
+        } catch (HttpStatusCodeException e) {
+            String errorMessage = "Une erreur HTTP est survenue: " + e.getResponseBodyAsString();
+            logger.error(errorMessage, e);
+            return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
+        } catch (Exception e) {
+            String generalErrorMessage = "Une erreur inattendue est survenue: " + e.getMessage();
+            logger.error(generalErrorMessage, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
         }
-        /*if (!signataireRepository.findByNomSignataire(signataireRequest.getNomSignataire()).isEmpty() && signataireRepository.findByEmail(signataireRequest.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Vérifiez si vous essayez d'enroller une personne déja existante");
-        }*/
-        signataire.setNomSignataire(signataireRequest.getNomSignataire());
-        signataire.setCategorie(signataireRequest.getCategorie());
-        //signataire.setApplication_rattachee(separer_idapp_nomapp(signataireRequest.getTrustedApp())[0]);
-        signataire.setNom_application(signataireRequest.getTrustedApp());
-        signataire.setCode_pin(encrypterPin(signataireRequest.getCode_pin()));
-        /*if(signataireRepository.findByEmail(signataireRequest.getEmail()).isPresent()){
-            return ResponseEntity.badRequest().body("Vérifiez si vous essayez d'enroller une personne déja existante");
-        }*/
-        signataire.setEmail(signataireRequest.getEmail());
-        signataire.setNom_entreprise(signataireRequest.getNom_entreprise());
-        signataire.setCleDeSignature(cle_de_signature);
-        //////////////////////////////////////////////////////////////////////
-        //////////////Infos pour obtenir certificat////////////////////////////
-        obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-        obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-        obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
-        obtenirCertRequest.setUsername(username);
-        obtenirCertRequest.setInclude_chain(true);
-        obtenirCertRequest.setPassword(signataireRequest.getPassword());
-        //obtenirCertRequest.setCertificate_request(prop.getProperty("csr"));
-        String subjectDN = "CN=" + signataireRequest.getNomSignataire() + ",O=" + signataireRequest.getNom_entreprise() + ",C=SN";
-        deleteKeySigner(worker.getIdWorker(),aliasCle);
-        String signKey = generateCryptoToken(aliasCle);
-        signataire.setSignerKey(aliasCle);
-        obtenirCertRequest.setCertificate_request(webServiceConnect(subjectDN,signKey));
-        /////////////////////////////////////////////////////////////////////////
-        /////////////////envoie req pour avoir certificat////////////////////////
-        HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
-        RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
-        ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
-        EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(),EnrollResponse.class);
-        List<String> certificateListPem = new ArrayList<>();
-        certificateListPem.add(enrollResponse.getCertificate());
-        importChaine(certificateListPem,aliasCle);
-        HttpStatus statusCode = (HttpStatus) response.getStatusCode();
-        int statusCodeValue = statusCode.value();
-        System.out.println("CODEEEEEE :" + statusCodeValue);
-        if (statusCodeValue == 201) {
-            //gst.deleteSigner(cle_de_signature);
-            Date date_creation = new Date();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            signataire.setDateCreation(sdf.format(date_creation));
-            signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
-            gst.updateRenouveler(signataire.getCleDeSignature(),signataire.getCode_pin(),sdf.format(date_creation),calculerDateExpiration2(sdf.format(date_creation)));
-            //signataireRepository.save(signataire);
-        }
-
-        /////////////////////////////////////////////////////////////////////////
-        return response;
     }
 
     ///////////////////////////AVOIR LA LISTE DES SIGNATAIRES//////////////////////////////////////////
     @GetMapping("tous_signataires")
+    @Operation(hidden = true)
     public List<Signataire> getAllSigners() {
         return signataireRepository.findAll();
     }
     /////////////////////////////Jours restants expiration certificate/////////////////////////////////////
+    @Operation(hidden = true)
     @GetMapping("jours_restants/{cle}")
     public String getJoursRestants(@PathVariable String cle) {
         String joursRestants = "";
@@ -359,6 +390,7 @@ public class SignataireController {
     //////////////////////////////////////////////////////////////////////////
     //////////////////////////GENERATION PIN//////////////////////////////////////////////////
     @PostMapping("generer_pin")
+    @Operation(hidden = true)
     // @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public long pin_generation() throws NoSuchAlgorithmException {
         final int taille_pin = 6;
@@ -371,6 +403,7 @@ public class SignataireController {
     }
 
     @RequestMapping("/")
+    @Operation(hidden = true)
     public String hello() {
         return "Goooooooooood";
     }
@@ -411,6 +444,7 @@ public class SignataireController {
 
     /////////////////////////////////////REVOKE////////////////////////////////////////////////////////////
     @PutMapping("revoke/{endentity_name}")
+    @Operation(hidden = true)
     public ResponseEntity<?> revokeSigner(@PathVariable String endentity_name) {
         GestSignataire gst = new GestSignataire();
         HttpHeaders headers = new HttpHeaders();
@@ -434,7 +468,7 @@ public class SignataireController {
 
 
     }
-
+    @Operation(hidden = true)
     @PutMapping("revokeSigner2/{cle}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> revokeSignerSansRenew2(@PathVariable String cle) {
@@ -444,8 +478,8 @@ public class SignataireController {
         String cle_de_signature = "";
         if (!signataireRepository.findByCleDeSignature(cle).isEmpty()) {
             Signataire signer = signataireRepository.findByCleDeSignature(cle).get(0);
-            String username = signer.getNomSignataire() + "_" + signer.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
-            cle_de_signature = "CLE_" + signer.getNomSignataire().toUpperCase().replaceAll("\\s+", "_") + "_" + signer.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
+            String username = signer.getNomSignataire() + "_" + signer.getNomEntreprise().toUpperCase().replaceAll("\\s+", "_");
+            cle_de_signature = "CLE_" + signer.getNomSignataire().toUpperCase().replaceAll("\\s+", "_") + "_" + signer.getNomEntreprise().toUpperCase().replaceAll("\\s+", "_");
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             RevokeRequest revokeRequest = new RevokeRequest();
@@ -470,34 +504,47 @@ public class SignataireController {
     }
     ///////////////////////REVOQUER SIGNATAIRE VERSION 2//////////////////////////////////
     @PutMapping("revokeSigner/{cle}")
+    @Operation(hidden = true)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> revokeSignerSansRenew_V2(@PathVariable String cle) throws MalformedURLException {
         int statusCodeValue = 0;
         Signataire signataire = new Signataire();
         GestSignataire gst = new GestSignataire();
-        StringBuilder aliasCle = new StringBuilder();
-        List<Worker> workerList=new ArrayList<>();
-
+        String aliasCle = "";
+        List<Worker> workerList = new ArrayList<>();
         String cle_de_signature = "";
-        boolean resultat=false;
-        if (!signataireRepository.findByCleDeSignature(cle).isEmpty()) {
-            Signataire signer = signataireRepository.findByCleDeSignature(cle).get(0);
-            aliasCle.append(prop.getProperty("aliasCle") + signer.getNomSignataire().toUpperCase().replaceAll("\\s+", "_"));
-            workerList = workerRepository.findWorkersByNomWorker(signer.getNom_application());
-            Worker worker= workerList.get(0);
-            String username = signer.getNomSignataire() + "_" + signer.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
-            cle_de_signature = "CLE_" + signer.getNomSignataire().toUpperCase().replaceAll("\\s+", "_") + "_" + signer.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
-            resultat = deleteKeySigner(worker.getIdWorker(),new String(aliasCle));
-        }
-        if (resultat) {
-            gst.deleteSigner(cle_de_signature);
-            return ResponseEntity.ok().body("Signataire supprimé avec succès");
+        boolean resultat = false;
 
-        } else {
-            return ResponseEntity.badRequest().body("Vérifier les informations du signataire que vous essayez de supprimer");
+        try {
+            if (!signataireRepository.findByCleDeSignature(cle).isEmpty()) {
+                Signataire signer = signataireRepository.findByCleDeSignature(cle).get(0);
+                cle_de_signature = signer.getSignerKey();
+                aliasCle = cle_de_signature;
+                workerList = workerRepository.findWorkersByNomWorker(signer.getNomApplication());
+                Worker worker = workerList.get(0);
+                resultat = deleteKeySigner(worker.getIdWorker(), aliasCle);
+            }
+
+            if (resultat) {
+                gst.deleteSigner(cle_de_signature);
+                String successMessage = "Signataire supprimé avec succès";
+                logger.info(successMessage);
+                return ResponseEntity.ok().body(successMessage);
+            } else {
+                String badRequestMessage = "Vérifier les informations du signataire que vous essayez de supprimer";
+                logger.warn(badRequestMessage);
+                return ResponseEntity.badRequest().body(badRequestMessage);
+            }
+        } catch (HttpStatusCodeException e) {
+            String errorMessage = "Une erreur HTTP est survenue: " + e.getResponseBodyAsString();
+            logger.error(errorMessage, e);
+            return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
+        } catch (Exception e) {
+            String generalErrorMessage = "Une erreur inattendue est survenue: " + e.getMessage();
+            logger.error(generalErrorMessage, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
         }
     }
-
     public String[] separer_idapp_nomapp(String app_cible) {
         // Supprimer les crochets et diviser la chaîne par la virgule
         String[] parts = app_cible.substring(1, app_cible.length() - 1).split(",");
@@ -562,6 +609,7 @@ public class SignataireController {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
     }
     @GetMapping("token-expiration-time/{token}")
+    @Operation(hidden = true)
     public long getTokenExpirationTime(@PathVariable String token) {
        try{
            // Extraire la date d'expiration du token JWT
@@ -580,6 +628,7 @@ public class SignataireController {
        }
     }
     @GetMapping("verif-token/{authToken}")
+    @Operation(hidden = true)
     public boolean validateJwtToken(@PathVariable String authToken) {
         try {
             Jwts.parserBuilder().setSigningKey(key()).build().parse(authToken);
@@ -601,6 +650,7 @@ public class SignataireController {
         return new SecretKeySpec(keyBytes, ALGORITHM);
     }
 
+    @Operation(hidden = true)
     @PostMapping("encrypt/{pin}")
     public String encrypterPin(@PathVariable String pin) {
         try {
@@ -634,6 +684,7 @@ public class SignataireController {
     }
 
     /////////////////SELECTION DATE///////////////////////////////////
+    @Operation(hidden = true)
     @GetMapping("listUserByDate/{dateCreation}")
     public List<Signataire> selectByDate(@PathVariable String dateCreation) {
         return signataireRepository.findByDateCreationContaining(dateCreation);
@@ -641,6 +692,7 @@ public class SignataireController {
 
     ////////////////////////////////////////////////////////////////
     @PostMapping("decrypt/{pinEncrypted}")
+    @Operation(hidden = true)
     public String decryptPin(@PathVariable String pinEncrypted) {
         try {
             SecretKey secretKey = getSecretKey(prop.getProperty("cleDeSecret"));
@@ -675,6 +727,7 @@ public class SignataireController {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     @GetMapping("generer_user/{nbre}")
+    @Operation(hidden = true)
     public void genererEtEnregistrerDonnees(@PathVariable int nbre) {
         for (int i = 0; i < nbre; i++) {
             Signataire signataire = genererSignataire(i);
@@ -697,8 +750,8 @@ public class SignataireController {
         signataire.setDate_expiration(LocalDateTime.parse(signataire.getDateCreation()).plusDays(generateRandomInt(365, 730)).toString());
         signataire.setEmail(generateRandomEmail(index));
         signataire.setNomSignataire(generateRandomName());
-        signataire.setNom_application(generateRandomWord());
-        signataire.setNom_entreprise(generateRandomCompany());
+        signataire.setNomApplication(generateRandomWord());
+        signataire.setNomEntreprise(generateRandomCompany());
 
         // Ajoutez ici toute logique d'ajustement des valeurs en fonction de l'index
 
@@ -753,6 +806,7 @@ public class SignataireController {
     }
 
     @GetMapping("generatePdf")
+    @Operation(hidden = true)
     public PDDocument generatePdf(@RequestBody Signataire signataire) {
         try (InputStream templateStream = getClass().getClassLoader().getResourceAsStream("template.pdf")) {
 
@@ -770,7 +824,7 @@ public class SignataireController {
             nom_signer.setValue(signataire.getNomSignataire());
 
             PDField nom_entreprise = acroForm.getField("nom_entreprise");
-            nom_entreprise.setValue(signataire.getNom_entreprise());
+            nom_entreprise.setValue(signataire.getNomEntreprise());
 
             PDField codePin = acroForm.getField("codePin");
             codePin.setValue(signataire.getCode_pin());
@@ -814,6 +868,7 @@ public class SignataireController {
      return convertToPEM(my_csr);
  }*/
     @PostMapping("obtenirCSR3/{subjectDN}")
+    @Operation(hidden = true)
     public PKCS10CertificationRequest generateCSR2(@PathVariable String subjectDN) throws Exception {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
@@ -890,7 +945,72 @@ public class SignataireController {
         }
         return null;
     }
+
+    @PostMapping("isExistSignerKey/{alias}")
+    public boolean isExistSignerKey(@PathVariable String alias) throws MalformedURLException {
+        System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
+        System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
+        System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
+        System.setProperty("javax.net.ssl.trustStorePassword", prop.getProperty("password_keystore"));
+        URL wsdlLocation = new URL(prop.getProperty("wsdlUrl"));
+        AdminWSService service = new AdminWSService(wsdlLocation);
+        port = service.getPort(AdminWS.class);
+        boolean resultat = false;
+        try {
+            connectionSetup(port);
+        } catch (IOException | GeneralSecurityException e1) {
+            e1.printStackTrace();
+        }
+        List<KeyTestResult> result = null;
+        try {
+            // Appeler l'opération
+            int signerId = Integer.parseInt(prop.getProperty("idCryptoTokenWrap")) ;  // Remplacez par les valeurs appropriées
+            String keyAlgorithm = "RSA";
+            String keySpec = "2048";
+            String authCode = prop.getProperty("authCodeSignKey");
+            result = port.testKey(signerId,alias,authCode);
+            if(result.get(0).isSuccess()){
+                resultat = true;
+            }
+            // Afficher le résultat
+            // System.out.println("Résultat de l'opération : " + result);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return resultat;
+    }
+
+    public boolean deleteSignerKey(String alias) throws MalformedURLException {
+        System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
+        System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
+        System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
+        System.setProperty("javax.net.ssl.trustStorePassword", prop.getProperty("password_keystore"));
+        URL wsdlLocation = new URL(prop.getProperty("wsdlUrl"));
+        AdminWSService service = new AdminWSService(wsdlLocation);
+        port = service.getPort(AdminWS.class);
+        try {
+            connectionSetup(port);
+        } catch (IOException | GeneralSecurityException e1) {
+            e1.printStackTrace();
+        }
+        try {
+            // Appeler l'opération
+            int signerId = Integer.parseInt(prop.getProperty("idCryptoTokenWrap")) ;  // Remplacez par les valeurs appropriées
+            String keyAlgorithm = "RSA";
+            String keySpec = "2048";
+            String authCode = prop.getProperty("authCodeSignKey");
+            boolean result = port.removeKey(signerId,alias);
+            // Afficher le résultat
+            // System.out.println("Résultat de l'opération : " + result);
+            return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
     @GetMapping("getWorkerId/{nomWorker}")
+    @Operation(hidden = true)
     public int getWorkerId(@PathVariable String nomWorker) throws MalformedURLException {
         System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
         System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
@@ -917,6 +1037,7 @@ public class SignataireController {
         return 0;
     }
     @PostMapping("reload/{workerId}")
+    @Operation(hidden = true)
     public void reload(@PathVariable int workerId) throws MalformedURLException {
         System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
         System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
@@ -944,6 +1065,7 @@ public class SignataireController {
     }
 
     @PostMapping("getAllWorkers")
+    @Operation(hidden = true)
     public List<Integer> getAllWorkers() throws MalformedURLException {
         // TODO Auto-generated method stub
         List<Integer> result = new ArrayList<>();
@@ -983,6 +1105,7 @@ public class SignataireController {
         return resultList;
     }
     @PostMapping("importChaine/{chaine}/{alias}")
+    @Operation(hidden = true)
     public void importChaine(@PathVariable List<String> chaine,@PathVariable String alias) throws MalformedURLException {
         // TODO Auto-generated method stub
         System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
@@ -1012,6 +1135,7 @@ public class SignataireController {
 
     }
     @PostMapping("avoirCSR2/{subjectDN}/{keyAlias}")
+    @Operation(hidden = true)
     public String webServiceConnect(@PathVariable String subjectDN, @PathVariable String keyAlias) throws MalformedURLException {
         // TODO Auto-generated method stub
         System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
@@ -1052,6 +1176,7 @@ public class SignataireController {
     }
 
     @PostMapping("avoirCSR/{subjectDN}")
+    @Operation(hidden = true)
     public String Connect_WS(@PathVariable String subjectDN) throws MalformedURLException {
         // TODO Auto-generated method stub
         System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
@@ -1145,88 +1270,113 @@ public class SignataireController {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     @PostMapping("enroll_V2")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    @Operation(summary = "Enrolement Signataire ", description = "Enroler un signataire et lui fournir un certificat")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Enrolement effectué avec succès - Renvoie le certificat."),
+            @ApiResponse(responseCode = "400", description = "Vérifiez le format de l'email -Vous essayez d'enrôler une personne déja existante !"),
+            @ApiResponse(responseCode = "401", description = "Non autorisé"),
+            @ApiResponse(responseCode = "500", description = "Erreur de serveur")
+    })
     public ResponseEntity<?> enrollSignataire_V2(@Valid @RequestBody SignataireRequest signataireRequest) throws Exception {
         RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        //headers.add("X-Keyfactor-Requested-With","");
-        String cle_de_signature = "CLE_" + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_") + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
+
+        String cle_de_signature = "userkey_" + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_");
         String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
-        //GENERER CLE DE SIGNATURE
         String alias = prop.getProperty("aliasCle") + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_");
-        ObjectMapper objectMapper = new ObjectMapper();
 
-        ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
-        Signataire signataire = new Signataire();
-        //////////////Infos pour le signataire/////////////////////////////////
-        if (!validateEmail(signataireRequest.getEmail())) {
-            return ResponseEntity.badRequest().body("Vérifiez le format de l'email");
+        long pin = pin_generation();
+        String cle_de_signature2 = prop.getProperty("aliasCle") + decouper_nom(signataireRequest.getNomSignataire().trim().toUpperCase()) + "_" + decouper_nom(signataireRequest.getNom_entreprise().toUpperCase().trim());
+        if (cle_de_signature2.length() > 30) {
+            cle_de_signature2 = cle_de_signature2.substring(0, 30);
         }
-        if (!signataireRepository.findByNomSignataire(signataireRequest.getNomSignataire()).isEmpty() && signataireRepository.findByEmail(signataireRequest.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Vous essayez d'enrôler une personne déja existante !");
-        }
-        signataire.setNomSignataire(signataireRequest.getNomSignataire());
-        signataire.setCategorie(signataireRequest.getCategorie());
-        //signataire.setApplication_rattachee(separer_idapp_nomapp(signataireRequest.getTrustedApp())[0]);
-        signataire.setNom_application(signataireRequest.getTrustedApp());
-        signataire.setCode_pin(encrypterPin(signataireRequest.getCode_pin()));
-        signataire.setEmail(signataireRequest.getEmail());
-        signataire.setNom_entreprise(signataireRequest.getNom_entreprise());
-        signataire.setCleDeSignature(cle_de_signature);
+        String alias2 = cle_de_signature2;
 
-        //////////////////////////////////////////////////////////////////////
-        //////////////Infos pour obtenir certificat////////////////////////////
-        obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-        obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-        obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
-        obtenirCertRequest.setInclude_chain(true);
-        obtenirCertRequest.setUsername(username);
-        obtenirCertRequest.setPassword(signataireRequest.getPassword());
-        //obtenirCertRequest.setCertificate_request(prop.getProperty("csr"));
-        String subjectDN = "CN=" + signataireRequest.getNomSignataire() + ",O=" + signataireRequest.getNom_entreprise() + ",C=SN";
-        //System.out.println(Connect_WS(subjectDN));
-
-        String signKey = generateCryptoToken(alias);
-        signataire.setSignerKey(alias);
-        obtenirCertRequest.setCertificate_request(webServiceConnect(subjectDN,signKey));
-        /////////////////////////////////////////////////////////////////////////
-        /////////////////envoie req pour avoir certificat////////////////////////
-        HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
-        //////////TRaiter la réponse de la requete
-        EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(),EnrollResponse.class);
-        List<String> certificateChain = enrollResponse.getCertificate_chain();
-        String chaineCertificat =formatCert(enrollResponse.getCertificate());
-
-        List<String> certificateListPem = new ArrayList<>();
-       /* String cleanedCertificatePem="";
-        for(String certif : certificateChain){
-            chaineCertificat+="\n"+certif;
-            // Nettoyer la chaîne de certificat des sauts de ligne
-            cleanedCertificatePem =cleanedCertificatePem+chaineCertificat.replaceAll("\\s", "");
-
-        }*/
-        certificateListPem.add(enrollResponse.getCertificate());
-        importChaine(certificateListPem,alias);
-        //System.out.println(chaineCertificat);
-        HttpStatus statusCode = (HttpStatus) response.getStatusCode();
-        int statusCodeValue = statusCode.value();
-        //System.out.println("CODEEEEEE :" + statusCodeValue);
-        if (statusCodeValue == 201) {
-            Date date_creation = new Date();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            signataire.setDateCreation(sdf.format(date_creation));
-            signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
-            signataireRepository.save(signataire);
+        if (isExistSignerKey(alias2)) {
+            String conflictMessage = "La clé de signature " + alias2 + " existe déjà";
+            logger.info(conflictMessage);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(conflictMessage);
         }
 
-        /////////////////////////////////////////////////////////////////////////
-        return response;
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
+            Signataire signataire = new Signataire();
+
+            if (!validateEmail(signataireRequest.getEmail())) {
+                String badRequestMessage = "Vérifiez le format de l'email";
+                logger.warn(badRequestMessage);
+                return ResponseEntity.badRequest().body(badRequestMessage);
+            }
+
+            if (!signataireRepository.findByCleDeSignature(cle_de_signature2).isEmpty()) {
+                String conflictMessage = "Vous essayez d'enrôler une personne déjà existante !";
+                logger.info(conflictMessage);
+                return ResponseEntity.badRequest().body(conflictMessage);
+            }
+
+            signataire.setNomSignataire(signataireRequest.getNomSignataire());
+            signataire.setCategorie(signataireRequest.getCategorie());
+            signataire.setNomApplication(signataireRequest.getTrustedApp());
+            signataire.setCode_pin(encrypterPin(signataireRequest.getCode_pin()));
+            signataire.setEmail(signataireRequest.getEmail());
+            signataire.setNomEntreprise(signataireRequest.getNom_entreprise());
+            signataire.setCleDeSignature(cle_de_signature2);
+
+            obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setInclude_chain(true);
+            obtenirCertRequest.setUsername(username);
+            obtenirCertRequest.setPassword(signataireRequest.getPassword());
+            String subjectDN = "CN=" + signataireRequest.getNomSignataire() + ",O=" + signataireRequest.getNom_entreprise() + ",C=SN";
+
+            String signKey = generateCryptoToken(alias2);
+            signataire.setSignerKey(alias2);
+            obtenirCertRequest.setCertificate_request(webServiceConnect(subjectDN, signKey));
+
+            HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+
+            EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse.class);
+            List<String> certificateChain = enrollResponse.getCertificate_chain();
+            String chaineCertificat = formatCert(enrollResponse.getCertificate());
+
+            List<String> certificateListPem = new ArrayList<>();
+            certificateListPem.add(enrollResponse.getCertificate());
+            importChaine(certificateListPem, alias2);
+
+            HttpStatus statusCode = (HttpStatus) response.getStatusCode();
+            int statusCodeValue = statusCode.value();
+
+            if (statusCodeValue == 201) {
+                Date date_creation = new Date();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                signataire.setDateCreation(sdf.format(date_creation));
+                signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                signataireRepository.save(signataire);
+                logger.info("Enrollment avec succès: " + response.getBody());
+            } else {
+                logger.error("Enrollment echoué: " + response.getBody());
+            }
+
+            return response;
+
+        } catch (HttpStatusCodeException e) {
+            String errorMessage = "Une erreur HTTP est survenue: " + e.getResponseBodyAsString();
+            logger.error(errorMessage, e);
+            return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
+        } catch (Exception e) {
+            String generalErrorMessage = "Une erreur inattendue est survenue: " + e.getMessage();
+            logger.error(generalErrorMessage, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
+        }
     }
 
     ///////////////////AFFICHER L'ENSEMBLE DES NOMS DES WORKERS/////////////////////////////////////
     @GetMapping("getAllNomWorkers")
+    @Operation(hidden = true)
     public List<String> findAllWorkers(){
         return workerRepository.findAllByNomWorker();
     }
@@ -1268,5 +1418,103 @@ public class SignataireController {
         return result;
     }
     ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////INSERTION ANCIENS SIGNATAIRES/////////////////////////////////////////////////////
+    @PostMapping("enroll_V3")
+   // @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public void enrollSignataire_V3(@Valid @RequestBody List<SignataireRequest> signataireRequest1) throws Exception {
+        for(SignataireRequest signataireRequest : signataireRequest1){
+            RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            //headers.add("X-Keyfactor-Requested-With","");
+            long pin = pin_generation();
+            String cle_de_signature = "userkey_" + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_")+"_"+pin ;
+            String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
+            //GENERER CLE DE SIGNATURE
+            String alias = cle_de_signature;
+            ObjectMapper objectMapper = new ObjectMapper();
+
+            ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
+            Signataire signataire = new Signataire();
+            //////////////Infos pour le signataire/////////////////////////////////
+
+            signataire.setNomSignataire(signataireRequest.getNomSignataire());
+            signataire.setCategorie(signataireRequest.getCategorie());
+            //signataire.setApplication_rattachee(separer_idapp_nomapp(signataireRequest.getTrustedApp())[0]);
+            signataire.setNomApplication(signataireRequest.getTrustedApp());
+            signataire.setCode_pin(encrypterPin(signataireRequest.getCode_pin()));
+            signataire.setEmail(signataireRequest.getEmail());
+            signataire.setNomEntreprise(signataireRequest.getNom_entreprise());
+            signataire.setCleDeSignature(cle_de_signature);
+
+            //////////////////////////////////////////////////////////////////////
+            //////////////Infos pour obtenir certificat////////////////////////////
+            obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setInclude_chain(true);
+            obtenirCertRequest.setUsername(username);
+            obtenirCertRequest.setPassword(signataireRequest.getPassword());
+            //obtenirCertRequest.setCertificate_request(prop.getProperty("csr"));
+            String subjectDN = "CN=" + signataireRequest.getNomSignataire() + ",O=" + signataireRequest.getNom_entreprise() + ",C=SN";
+            //System.out.println(Connect_WS(subjectDN));
+
+            String signKey = generateCryptoToken(alias);
+            signataire.setSignerKey(alias);
+            obtenirCertRequest.setCertificate_request(webServiceConnect(subjectDN,signKey));
+            /////////////////////////////////////////////////////////////////////////
+            /////////////////envoie req pour avoir certificat////////////////////////
+            HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+            //////////TRaiter la réponse de la requete
+            EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(),EnrollResponse.class);
+            List<String> certificateChain = enrollResponse.getCertificate_chain();
+            String chaineCertificat =formatCert(enrollResponse.getCertificate());
+
+            List<String> certificateListPem = new ArrayList<>();
+       /* String cleanedCertificatePem="";
+        for(String certif : certificateChain){
+            chaineCertificat+="\n"+certif;
+            // Nettoyer la chaîne de certificat des sauts de ligne
+            cleanedCertificatePem =cleanedCertificatePem+chaineCertificat.replaceAll("\\s", "");
+
+        }*/
+            certificateListPem.add(enrollResponse.getCertificate());
+            importChaine(certificateListPem,alias);
+            //System.out.println(chaineCertificat);
+            HttpStatus statusCode = (HttpStatus) response.getStatusCode();
+            int statusCodeValue = statusCode.value();
+            //System.out.println("CODEEEEEE :" + statusCodeValue);
+            if (statusCodeValue == 201) {
+                Date date_creation = new Date();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                signataire.setDateCreation(sdf.format(date_creation));
+                signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                signataireRepository.save(signataire);
+            }
+
+            /////////////////////////////////////////////////////////////////////////
+
+        }
+
+    }
+
+    public String decouper_nom(String nomAChanger){
+        if(nomAChanger.contains(" ")){
+            String[] caract = nomAChanger.split(" ");
+            nomAChanger = caract[0]+ "_";
+            for(int i = 1; i < caract.length ; i++){
+                nomAChanger += caract[i].charAt(0) ;
+            }
+        }
+        if (nomAChanger.length() > 30){
+            nomAChanger = nomAChanger.substring(0,30);
+        }
+
+        return nomAChanger;
+    }
+
 
 }

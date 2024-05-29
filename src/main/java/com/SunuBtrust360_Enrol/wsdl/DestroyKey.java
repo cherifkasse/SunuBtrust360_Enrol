@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour destroyKey complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="destroyKey"&gt;
@@ -37,7 +37,7 @@ public class DestroyKey {
     protected int purpose;
 
     /**
-     * Obtient la valeur de la propriété signerId.
+     * Obtient la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public int getSignerId() {
@@ -45,7 +45,7 @@ public class DestroyKey {
     }
 
     /**
-     * Définit la valeur de la propriété signerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public void setSignerId(int value) {
@@ -53,7 +53,7 @@ public class DestroyKey {
     }
 
     /**
-     * Obtient la valeur de la propriété purpose.
+     * Obtient la valeur de la propriï¿½tï¿½ purpose.
      * 
      */
     public int getPurpose() {
@@ -61,7 +61,7 @@ public class DestroyKey {
     }
 
     /**
-     * Définit la valeur de la propriété purpose.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ purpose.
      * 
      */
     public void setPurpose(int value) {

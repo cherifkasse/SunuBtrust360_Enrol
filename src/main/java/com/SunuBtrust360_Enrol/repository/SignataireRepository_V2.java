@@ -16,7 +16,7 @@ public interface SignataireRepository_V2 extends JpaRepository<Signataire_V2, In
     List<Signataire_V2> findSignataireByCni(String cni);
 
     boolean existsById(int id);
-    boolean findById(int id);
+
 
     @Override
     long count();

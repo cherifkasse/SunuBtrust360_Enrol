@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour generateSignerKey complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="generateSignerKey"&gt;
@@ -46,7 +46,7 @@ public class GenerateSignerKey {
     protected String authCode;
 
     /**
-     * Obtient la valeur de la propriété signerId.
+     * Obtient la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public int getSignerId() {
@@ -54,7 +54,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Définit la valeur de la propriété signerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public void setSignerId(int value) {
@@ -62,7 +62,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Obtient la valeur de la propriété keyAlgorithm.
+     * Obtient la valeur de la propriï¿½tï¿½ keyAlgorithm.
      * 
      * @return
      *     possible object is
@@ -74,7 +74,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Définit la valeur de la propriété keyAlgorithm.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ keyAlgorithm.
      * 
      * @param value
      *     allowed object is
@@ -86,7 +86,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Obtient la valeur de la propriété keySpec.
+     * Obtient la valeur de la propriï¿½tï¿½ keySpec.
      * 
      * @return
      *     possible object is
@@ -98,7 +98,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Définit la valeur de la propriété keySpec.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ keySpec.
      * 
      * @param value
      *     allowed object is
@@ -110,7 +110,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Obtient la valeur de la propriété alias.
+     * Obtient la valeur de la propriï¿½tï¿½ alias.
      * 
      * @return
      *     possible object is
@@ -122,7 +122,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Définit la valeur de la propriété alias.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ alias.
      * 
      * @param value
      *     allowed object is
@@ -134,7 +134,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Obtient la valeur de la propriété authCode.
+     * Obtient la valeur de la propriï¿½tï¿½ authCode.
      * 
      * @return
      *     possible object is
@@ -146,7 +146,7 @@ public class GenerateSignerKey {
     }
 
     /**
-     * Définit la valeur de la propriété authCode.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ authCode.
      * 
      * @param value
      *     allowed object is

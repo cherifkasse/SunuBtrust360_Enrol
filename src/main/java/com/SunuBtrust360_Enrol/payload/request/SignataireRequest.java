@@ -1,30 +1,59 @@
 package com.SunuBtrust360_Enrol.payload.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * @author Cherif KASSE
  * @project SunuBtrust360_Enrol
  * @created 26/10/2023/10/2023 - 12:32
  */
 public class SignataireRequest {
+    @JsonIgnore
     private Integer id;
+
+    @JsonIgnore
     private String application_rattachee;
+
+    @JsonIgnore
     private String nom_application;
+
+    @Schema(description = "Le nom du signataire")
     private String nomSignataire;
+
+    @Schema(description = "Le code pin du signataire")
     private String code_pin;
+
+    @Schema(description = "L'email du signataire")
     private String email;
+    @Schema(description = "La categorie du signataire")
     private String categorie ;
+
+    @Schema(description = "Nom de l'entreprise du signataire")
     private String nom_entreprise;
+
+    @JsonIgnore
     private String cle_de_signature;
+
+    @JsonIgnore
     private String dateCreation;
+    @JsonIgnore
     private String date_expiration;
 
+    @Schema(description = "Nom de l'application appelante")
     private String trustedApp;
 
+    @JsonIgnore
     private String certificate_request;
+    @JsonIgnore
     private String certificate_profile_name;
+    @JsonIgnore
     private String end_entity_profile_name;
+    @JsonIgnore
     private String certificate_authority_name;
+    @JsonIgnore
     private String username;
+    @JsonIgnore
     private String password;
 
     public SignataireRequest() {

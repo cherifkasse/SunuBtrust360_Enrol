@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour keyTestResult complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schema suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="keyTestResult"&gt;
@@ -43,7 +43,7 @@ public class KeyTestResult {
     protected boolean success;
 
     /**
-     * Obtient la valeur de la propriété alias.
+     * Obtient la valeur de la propriï¿½tï¿½ alias.
      * 
      * @return
      *     possible object is
@@ -55,7 +55,7 @@ public class KeyTestResult {
     }
 
     /**
-     * Définit la valeur de la propriété alias.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ alias.
      * 
      * @param value
      *     allowed object is
@@ -67,7 +67,7 @@ public class KeyTestResult {
     }
 
     /**
-     * Obtient la valeur de la propriété publicKeyHash.
+     * Obtient la valeur de la propriï¿½tï¿½ publicKeyHash.
      * 
      * @return
      *     possible object is
@@ -79,7 +79,7 @@ public class KeyTestResult {
     }
 
     /**
-     * Définit la valeur de la propriété publicKeyHash.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ publicKeyHash.
      * 
      * @param value
      *     allowed object is
@@ -91,7 +91,7 @@ public class KeyTestResult {
     }
 
     /**
-     * Obtient la valeur de la propriété status.
+     * Obtient la valeur de la propriï¿½tï¿½ status.
      * 
      * @return
      *     possible object is
@@ -103,7 +103,7 @@ public class KeyTestResult {
     }
 
     /**
-     * Définit la valeur de la propriété status.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ status.
      * 
      * @param value
      *     allowed object is
@@ -115,7 +115,7 @@ public class KeyTestResult {
     }
 
     /**
-     * Obtient la valeur de la propriété success.
+     * Obtient la valeur de la propriï¿½tï¿½ success.
      * 
      */
     public boolean isSuccess() {
@@ -123,7 +123,7 @@ public class KeyTestResult {
     }
 
     /**
-     * Définit la valeur de la propriété success.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ success.
      * 
      */
     public void setSuccess(boolean value) {

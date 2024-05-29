@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour authorizedClient complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="authorizedClient"&gt;
@@ -37,7 +37,7 @@ public class AuthorizedClient {
     protected String issuerDN;
 
     /**
-     * Obtient la valeur de la propriété certSN.
+     * Obtient la valeur de la propriï¿½tï¿½ certSN.
      * 
      * @return
      *     possible object is
@@ -49,7 +49,7 @@ public class AuthorizedClient {
     }
 
     /**
-     * Définit la valeur de la propriété certSN.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ certSN.
      * 
      * @param value
      *     allowed object is
@@ -61,7 +61,7 @@ public class AuthorizedClient {
     }
 
     /**
-     * Obtient la valeur de la propriété issuerDN.
+     * Obtient la valeur de la propriï¿½tï¿½ issuerDN.
      * 
      * @return
      *     possible object is
@@ -73,7 +73,7 @@ public class AuthorizedClient {
     }
 
     /**
-     * Définit la valeur de la propriété issuerDN.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ issuerDN.
      * 
      * @param value
      *     allowed object is

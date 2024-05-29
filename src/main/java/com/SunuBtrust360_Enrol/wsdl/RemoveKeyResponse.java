@@ -10,7 +10,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour removeKeyResponse complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="removeKeyResponse"&gt;
@@ -36,7 +36,7 @@ public class RemoveKeyResponse {
     protected boolean _return;
 
     /**
-     * Obtient la valeur de la propriété return.
+     * Obtient la valeur de la propriï¿½tï¿½ return.
      * 
      */
     public boolean isReturn() {
@@ -44,7 +44,7 @@ public class RemoveKeyResponse {
     }
 
     /**
-     * Définit la valeur de la propriété return.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ return.
      * 
      */
     public void setReturn(boolean value) {

@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour certReqData complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="certReqData"&gt;
@@ -43,7 +43,7 @@ public class CertReqData {
     protected String fileSuffix;
 
     /**
-     * Obtient la valeur de la propriété armored.
+     * Obtient la valeur de la propriï¿½tï¿½ armored.
      * 
      * @return
      *     possible object is
@@ -55,7 +55,7 @@ public class CertReqData {
     }
 
     /**
-     * Définit la valeur de la propriété armored.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ armored.
      * 
      * @param value
      *     allowed object is
@@ -67,7 +67,7 @@ public class CertReqData {
     }
 
     /**
-     * Obtient la valeur de la propriété binary.
+     * Obtient la valeur de la propriï¿½tï¿½ binary.
      * 
      * @return
      *     possible object is
@@ -78,7 +78,7 @@ public class CertReqData {
     }
 
     /**
-     * Définit la valeur de la propriété binary.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ binary.
      * 
      * @param value
      *     allowed object is
@@ -89,7 +89,7 @@ public class CertReqData {
     }
 
     /**
-     * Obtient la valeur de la propriété contentType.
+     * Obtient la valeur de la propriï¿½tï¿½ contentType.
      * 
      * @return
      *     possible object is
@@ -101,7 +101,7 @@ public class CertReqData {
     }
 
     /**
-     * Définit la valeur de la propriété contentType.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ contentType.
      * 
      * @param value
      *     allowed object is
@@ -113,7 +113,7 @@ public class CertReqData {
     }
 
     /**
-     * Obtient la valeur de la propriété fileSuffix.
+     * Obtient la valeur de la propriï¿½tï¿½ fileSuffix.
      * 
      * @return
      *     possible object is
@@ -125,7 +125,7 @@ public class CertReqData {
     }
 
     /**
-     * Définit la valeur de la propriété fileSuffix.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ fileSuffix.
      * 
      * @param value
      *     allowed object is

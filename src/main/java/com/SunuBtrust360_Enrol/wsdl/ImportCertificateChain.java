@@ -11,7 +11,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour importCertificateChain complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schema suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="importCertificateChain"&gt;
@@ -45,7 +45,7 @@ public class ImportCertificateChain {
     protected String authenticationCode;
 
     /**
-     * Obtient la valeur de la propriété workerId.
+     * Obtient la valeur de la propriï¿½tï¿½ workerId.
      * 
      */
     public int getWorkerId() {
@@ -53,7 +53,7 @@ public class ImportCertificateChain {
     }
 
     /**
-     * Définit la valeur de la propriété workerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ workerId.
      * 
      */
     public void setWorkerId(int value) {
@@ -89,7 +89,7 @@ public class ImportCertificateChain {
     }
 
     /**
-     * Obtient la valeur de la propriété alias.
+     * Obtient la valeur de la propriï¿½tï¿½ alias.
      * 
      * @return
      *     possible object is
@@ -101,7 +101,7 @@ public class ImportCertificateChain {
     }
 
     /**
-     * Définit la valeur de la propriété alias.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ alias.
      * 
      * @param value
      *     allowed object is
@@ -113,7 +113,7 @@ public class ImportCertificateChain {
     }
 
     /**
-     * Obtient la valeur de la propriété authenticationCode.
+     * Obtient la valeur de la propriï¿½tï¿½ authenticationCode.
      * 
      * @return
      *     possible object is
@@ -125,7 +125,7 @@ public class ImportCertificateChain {
     }
 
     /**
-     * Définit la valeur de la propriété authenticationCode.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ authenticationCode.
      * 
      * @param value
      *     allowed object is

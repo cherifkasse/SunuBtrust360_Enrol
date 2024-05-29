@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour getPKCS10CertificateRequestForAlias2 complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="getPKCS10CertificateRequestForAlias2"&gt;
@@ -43,7 +43,7 @@ public class GetPKCS10CertificateRequestForAlias2 {
     protected String keyAlias;
 
     /**
-     * Obtient la valeur de la propriété signerId.
+     * Obtient la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public int getSignerId() {
@@ -51,7 +51,7 @@ public class GetPKCS10CertificateRequestForAlias2 {
     }
 
     /**
-     * Définit la valeur de la propriété signerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public void setSignerId(int value) {
@@ -59,7 +59,7 @@ public class GetPKCS10CertificateRequestForAlias2 {
     }
 
     /**
-     * Obtient la valeur de la propriété certReqInfo.
+     * Obtient la valeur de la propriï¿½tï¿½ certReqInfo.
      * 
      * @return
      *     possible object is
@@ -71,7 +71,7 @@ public class GetPKCS10CertificateRequestForAlias2 {
     }
 
     /**
-     * Définit la valeur de la propriété certReqInfo.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ certReqInfo.
      * 
      * @param value
      *     allowed object is
@@ -83,7 +83,7 @@ public class GetPKCS10CertificateRequestForAlias2 {
     }
 
     /**
-     * Obtient la valeur de la propriété explicitEccParameters.
+     * Obtient la valeur de la propriï¿½tï¿½ explicitEccParameters.
      * 
      */
     public boolean isExplicitEccParameters() {
@@ -91,7 +91,7 @@ public class GetPKCS10CertificateRequestForAlias2 {
     }
 
     /**
-     * Définit la valeur de la propriété explicitEccParameters.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ explicitEccParameters.
      * 
      */
     public void setExplicitEccParameters(boolean value) {
@@ -99,7 +99,7 @@ public class GetPKCS10CertificateRequestForAlias2 {
     }
 
     /**
-     * Obtient la valeur de la propriété keyAlias.
+     * Obtient la valeur de la propriï¿½tï¿½ keyAlias.
      * 
      * @return
      *     possible object is
@@ -111,7 +111,7 @@ public class GetPKCS10CertificateRequestForAlias2 {
     }
 
     /**
-     * Définit la valeur de la propriété keyAlias.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ keyAlias.
      * 
      * @param value
      *     allowed object is

@@ -4,16 +4,19 @@ package com.SunuBtrust360_Enrol.controller;
 import com.SunuBtrust360_Enrol.config.CustomHttpRequestFactory;
 import com.SunuBtrust360_Enrol.models.OperationSignature;
 import com.SunuBtrust360_Enrol.models.PieceIdentite;
+import com.SunuBtrust360_Enrol.models.Signataire;
 import com.SunuBtrust360_Enrol.models.Signataire_V2;
-import com.SunuBtrust360_Enrol.repository.OperationRepository;
-import com.SunuBtrust360_Enrol.repository.PieceIdentiteRepository;
-import com.SunuBtrust360_Enrol.repository.SignataireRepository_V2;
+import com.SunuBtrust360_Enrol.repository.*;
 import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest_V2;
 import com.SunuBtrust360_Enrol.payload.request.SignataireRequest_V2;
-import com.SunuBtrust360_Enrol.repository.WorkerRepository;
 import com.SunuBtrust360_Enrol.wsdl.*;
 import com.SunuBtrust360_Enrol.wsdl_client.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.apache.cxf.configuration.jsse.TLSClientParameters;
 import org.apache.cxf.configuration.security.AuthorizationPolicy;
 import org.apache.cxf.frontend.ClientProxy;
@@ -30,6 +33,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.*;
@@ -69,6 +73,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/signer/")
 @CrossOrigin(origins = "http://localhost:8080")
+@Api("API de signature")
+@Hidden
 public class SignerController {
     @RequestMapping("/")
     public String hello(){
@@ -88,6 +94,8 @@ public class SignerController {
     @Autowired
     private final SignataireRepository_V2 signataireRepository_V2;
     @Autowired
+    private final SignataireRepository signataireRepository;
+    @Autowired
     private PieceIdentiteRepository pieceIdentiteRepository;
 
     @Autowired
@@ -96,8 +104,9 @@ public class SignerController {
     @Autowired
     private OperationRepository operationRepository;
 
-    public SignerController(SignataireRepository_V2 signataireRepository,WorkerRepository workerRepository,OperationRepository operationRepository) {
+    public SignerController(SignataireRepository_V2 signataireRepository, SignataireRepository signataireRepository1, WorkerRepository workerRepository, OperationRepository operationRepository) {
         this.signataireRepository_V2 = signataireRepository;
+        this.signataireRepository = signataireRepository1;
         this.workerRepository = workerRepository;
         this.operationRepository = operationRepository;
         log = LogManager.getLogger(SignerController.class);
@@ -135,18 +144,130 @@ public class SignerController {
                 .collect(Collectors.toList());
     }
     @PostMapping("enroll")
+    @ApiOperation(value="Cette section permet à l’application métier qui a effectué un enrôlement de téléverser une copie d'un document d'identité pour un signataire existant dans le système. En téléversant une pièce d'identité, les opérateurs du centre d’enregistrement peuvent vérifier et authentifier l'identité du signataire. Cette fonctionnalité améliore les mesures de sécurité et garantit le respect des protocoles de vérification d'identité.")
+    @ApiResponses(value = {
+
+            @ApiResponse(responseCode = "200", description = "Le fichier a été téléchargé avec succès"),
+            @ApiResponse(responseCode = "400", description = "L’ID du signataire n’existe pas ou aucun fichier n’a été fourni"),
+            @ApiResponse(responseCode = "500", description = "Une erreur interne du serveur s’est produite")
+    })
     public ResponseEntity<?> enrollSignataire_V2(@Valid @RequestBody SignataireRequest_V2 signataireRequest, BindingResult bindingResult) throws Exception {
+        RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        if (bindingResult.hasErrors()) {
+            return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
+        }
+
+        String cle_de_signature2 = prop.getProperty("aliasCle") + decouper_nom(signataireRequest.getNomSignataire().trim().toUpperCase());
+        if (cle_de_signature2.length() > 30){
+            cle_de_signature2 = cle_de_signature2.substring(0, 30);
+        }
+        String alias = cle_de_signature2;
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        if (isExistSignerKey(alias)){
+            String conflictMessage = "La clé de signature " + alias + " existe déjà";
+            logger.info(conflictMessage);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(conflictMessage);
+        }
+
+        try {
+            ObtenirCertRequest_V2 obtenirCertRequest = new ObtenirCertRequest_V2();
+            Signataire_V2 signataire = new Signataire_V2();
+
+            Set<String> champsAttendus = new HashSet<>(Arrays.asList("nomSignataire", "cni", "telephone"));
+            for (Field field : SignataireRequest_V2.class.getDeclaredFields()) {
+                if (!champsAttendus.contains(field.getName())) {
+                    String badRequestMessage = "Champ supplementaire '" + field.getName() + "' non autorise.";
+                    logger.warn(badRequestMessage);
+                    return ResponseEntity.badRequest().body(badRequestMessage);
+                }
+            }
+            if (signataireRequest.getNomSignataire() == null || signataireRequest.getNomSignataire().isEmpty() ||
+                    signataireRequest.getCni() == null || signataireRequest.getCni().isEmpty()) {
+                String badRequestMessage = "Verifiez si vous avez rempli toutes les informations";
+                logger.warn(badRequestMessage);
+                return ResponseEntity.badRequest().body(badRequestMessage);
+            }
+
+            if (!signataireRepository_V2.findSignataireByCni(signataireRequest.getCni()).isEmpty()) {
+                String conflictMessage = "Person already exists!";
+                logger.info(conflictMessage);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(conflictMessage);
+            }
+
+            String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getCni().toUpperCase().replaceAll("\\s+", "_");
+            signataire.setNomSignataire(signataireRequest.getNomSignataire());
+            Long pin = pin_generation();
+            signataire.setCodePin(encrypterPin(pin.toString()));
+            String signKey = generateCryptoToken(alias);
+            signataire.setSignerKey(signKey);
+            signataire.setCni(signataireRequest.getCni());
+            signataire.setTelephone(signataireRequest.getTelephone());
+
+            obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setInclude_chain(true);
+            obtenirCertRequest.setUsername(username);
+            obtenirCertRequest.setPassword(prop.getProperty("defaultPassword"));
+            String subjectDN = "CN=" + signataireRequest.getNomSignataire() + ",O=" + signataireRequest.getCni() + ",C=SN";
+            obtenirCertRequest.setCertificate_request(Connect_WS2(subjectDN, signKey));
+
+            HttpEntity<ObtenirCertRequest_V2> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+
+            EnrollResponse_V2 enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse_V2.class);
+            enrollResponse.setCodePin(pin.toString());
+
+            if (response.getStatusCode() == HttpStatus.CREATED) {
+                Date date_creation = new Date();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                signataire.setDateCreation(sdf.format(date_creation));
+                signataire.setDateExpiration(calculerDateExpiration2(sdf.format(date_creation)));
+                signataire = signataireRepository_V2.save(signataire);
+                enrollResponse.setId_signer((int) signataireRepository_V2.count());
+                String responseBodyWithCodePin = objectMapper.writeValueAsString(enrollResponse);
+                logger.info("Enrollment avec succès: " + responseBodyWithCodePin);
+                return new ResponseEntity<>(responseBodyWithCodePin, HttpStatus.OK);
+            } else {
+                logger.error("Enrollment echoué: " + response.getBody());
+                return new ResponseEntity<>(response.getBody(), response.getStatusCode());
+            }
+
+        } catch (HttpStatusCodeException e) {
+            String errorMessage = "Erreur HTTP survenue: " + e.getResponseBodyAsString();
+            logger.error(errorMessage, e);
+            return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
+        } catch (Exception e) {
+            String generalErrorMessage = "Une erreur inattendue est apparue: " + e.getMessage();
+            logger.error(generalErrorMessage, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
+        }
+    }
+    /*public ResponseEntity<?> enrollSignataire_V2(@Valid @RequestBody SignataireRequest_V2 signataireRequest, BindingResult bindingResult) throws Exception {
         RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         //headers.add("X-Keyfactor-Requested-With","");
         if (bindingResult.hasErrors()) {
-
             return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
         }
         //GENERER CLE DE SIGNATURE SUR SIGNSERVER
-        String alias = prop.getProperty("aliasCle") + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_");
+        //String alias = prop.getProperty("aliasCle") + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_");
+        String cle_de_signature2 = prop.getProperty("aliasCle") + decouper_nom(signataireRequest.getNomSignataire().trim().toUpperCase());
+        //GENERER CLE DE SIGNATURE
+        if (cle_de_signature2.length() > 30){
+            cle_de_signature2 = cle_de_signature2.substring(0,30);
+        }
+        String alias = cle_de_signature2;
         ObjectMapper objectMapper = new ObjectMapper();
+
+        if (isExistSignerKey(alias)){
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("La clé de signature "+alias+" existe déja");
+        }
 
         ObtenirCertRequest_V2 obtenirCertRequest = new ObtenirCertRequest_V2();
         Signataire_V2 signataire = new Signataire_V2();
@@ -223,7 +344,7 @@ public class SignerController {
 
         /////////////////////////////////////////////////////////////////////////
         return new ResponseEntity<>(responseBodyWithCodePin, HttpStatus.OK);
-    }
+    }*/
     //Calculer la duree du certficat
     /////////////////////////////////////////////////////////////////////////////////////////
     private List<byte[]> decodeBase64List(List<String> inputList) {
@@ -321,7 +442,7 @@ public class SignerController {
     }
     @PostMapping("encrypt/{pin}")
     public String encrypterPin(@PathVariable String pin) {
-        try {
+        try{
             SecretKey secretKey = getSecretKey(prop.getProperty("cleDeSecret"));
             Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(IV));
@@ -834,6 +955,272 @@ public class SignerController {
         authorizationPolicy.setAuthorizationType(HttpAuthHeader.AUTH_TYPE_BASIC); // Set the appropriate authorization type
         authorizationPolicy.setUserName(username);
         authorizationPolicy.setPassword("passe");
+
+    }
+    DataResponse rsp=null;
+    @PostMapping("signature4/{id_signer}")
+    public ResponseEntity<?> Signature_base22(@RequestParam(value="workerId",required = false) Integer idWorker, @RequestParam("filereceivefile") MultipartFile file, @RequestParam("codePin") String codePin, @PathVariable Integer id_signer) throws IOException {
+
+        Optional<Signataire_V2> signataireV2Optional = signataireRepository_V2.findById(id_signer);
+        if(idWorker == null){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("ID Application introuvable !");
+        }
+        int workerId = idWorker != null ? idWorker.intValue() : 0;
+        if(!signataireV2Optional.isPresent()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Utilisateur inconnu !");
+        }
+        Signataire_V2 signer = signataireV2Optional.get();
+        if (!encrypterPin(codePin).equals(signer.getCodePin()))
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Veuillez fournir un bon code PIN !");
+        if (file.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Veuillez selectionner un fichier !");
+        }
+        if(!workerRepository.existsByIdWorker(idWorker)){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("ID Application introuvable !");
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        //headers.add("X-Keyfactor-Requested-With","");
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("filereceivefile", new ByteArrayResource(file.getBytes()){
+            @Override
+            public String getFilename() {
+                return file.getOriginalFilename();
+            }
+        });
+        body.add("workerId", workerId);
+        body.add("codePin", codePin);
+        //////////////////////////////////////////////////////
+        final String serviceURL = prop.getProperty("wsdlUrl_client");
+        String keyStoreLocation = prop.getProperty("keystore");
+        String trustStoreLocation = prop.getProperty("trustore1");
+
+        String password = prop.getProperty("password_keystore");
+
+        System.setProperty("javax.net.ssl.keyStore", keyStoreLocation);
+        System.setProperty("javax.net.ssl.password", password);
+        System.setProperty("javax.net.ssl.trustStore", trustStoreLocation);
+        System.setProperty("javax.net.ssl.trustStorePassword", password);
+
+
+        //QName serviceName = new QName("http://www.confiancefactory.com/", "SignServerUser_Cert");
+        URL wsdlURL=null;
+        try {
+            wsdlURL = new URL(serviceURL );
+        } catch (MalformedURLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        ClientWSService service = new ClientWSService(wsdlURL);
+        ClientWS port = service.getClientWSPort();
+        System.out.println("#####PORT "+port);
+        try {
+            setupTLS3(port, password, signer.getNomSignataire());
+        } catch (IOException | GeneralSecurityException e1) {
+            // TODO Auto-generated catch block
+            //log.error(e1.getMessage());
+            e1.printStackTrace();
+        }
+
+
+        try {
+            byte[] byteArrayDocument=null;
+            try {
+                //byteArrayDocument = Files.readAllBytes(Paths.get("D://ProJs//SigningServer//LS33600.pdf"));
+                byteArrayDocument = Files.readAllBytes(Paths.get(file.getOriginalFilename()));
+
+                System.out.println("byteArrayDocument.length: "+byteArrayDocument.length);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
+            byte[] fileBytes = file.getBytes();
+            List<byte[]> bytesFile = new ArrayList<>();
+            bytesFile.add(fileBytes);
+            rsp= port.processData("PDFSigner_Wrap", null, fileBytes);
+            OperationSignature operationSignature = new OperationSignature();
+            operationSignature.setIdSigner(id_signer);
+            operationSignature.setCodePin(signer.getCodePin());
+            operationSignature.setSignerKey(signer.getSignerKey());
+            Date dateOp = new Date();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            operationSignature.setDateOperation(sdf.format(dateOp));
+
+            operationRepository.save(operationSignature);
+
+        } catch (
+                InternalServerException_Exception | RequestFailedException_Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return ResponseEntity.ok(rsp) ;
+
+    }
+    private void setupTLS3(ClientWS port, String keyPassword, String username)
+            throws FileNotFoundException, IOException, GeneralSecurityException {
+
+        // String filename = chemin_keystore.trim()+"ejbca_auth_jks.jks";
+        // String filenameTrust = chemin_keystore.trim()+"ejbca_truststore.jks";
+
+        if (port == null) {
+            throw new IllegalArgumentException("The port object cannot be null.");
+        }
+
+        if (!Proxy.class.isAssignableFrom(port.getClass())) {
+            throw new IllegalArgumentException("The given port object is not a proxy instance.");
+        }
+        // Configuration du conduit HTTP pour utiliser TLS
+        HTTPConduit httpConduit = (HTTPConduit) ClientProxy.getClient(port).getConduit();
+
+        //HTTPConduit httpConduit = (HTTPConduit) ((BindingProvider) port).getRequestContext().get(HTTPConduit.class);
+        System.out.println("#####PORT "+httpConduit);
+        TLSClientParameters tlsCP = new TLSClientParameters();
+
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        String keyStoreLoc = prop.getProperty("keystore");
+
+        keyStore.load(Files.newInputStream(Paths.get(keyStoreLoc)), keyPassword.toCharArray());
+        KeyManager[] myKeyManagers = getKeyManagers(keyStore, keyPassword);
+        if (myKeyManagers == null) {
+            throw new IllegalArgumentException("The key store cannot be null.");
+        }
+        tlsCP.setKeyManagers(myKeyManagers);
+
+        KeyStore trustStore = KeyStore.getInstance("JKS");
+        String trustStoreLoc = prop.getProperty("trustore1");
+        trustStore.load(Files.newInputStream(Paths.get(trustStoreLoc)), keyPassword.toCharArray());
+        TrustManager[] myTrustStoreKeyManagers = getTrustManagers(trustStore);
+        if (myTrustStoreKeyManagers == null) {
+            throw new IllegalArgumentException("The trusted store cannot be null.");
+        }
+
+        tlsCP.setTrustManagers(myTrustStoreKeyManagers);
+
+        // The following is not recommended and would not be done in a prodcution
+        // environment,
+        // this is just for illustrative purpose
+        tlsCP.setDisableCNCheck(true);
+
+        httpConduit.setTlsClientParameters(tlsCP);
+
+        // Set client certificate information for authentication (if required)
+        AuthorizationPolicy authorizationPolicy = httpConduit.getAuthorization();
+        authorizationPolicy.setAuthorizationType(HttpAuthHeader.AUTH_TYPE_BASIC); // Set the appropriate authorization type
+        authorizationPolicy.setUserName(username);
+        authorizationPolicy.setPassword("passe");
+
+    }
+
+    ////////////////////////////////////////////////
+    /////////////////API DE RECHERHCE DE SIGNER PAR ID///////////////////////////////////////
+    @GetMapping("findSignerById/{idSigner}")
+    public Signataire_V2 trouverSignerParId(@PathVariable int idSigner){
+        Optional<Signataire_V2> signer = signataireRepository_V2.findById(idSigner);
+        if (signer.isPresent()){
+           return  signer.get();
+        }
+        return null;
+    }
+
+    @GetMapping("findSignataireById/{idSigner}")
+    public Signataire trouverSignataireParId(@PathVariable int idSigner){
+        Optional<Signataire> signer = signataireRepository.findById(idSigner);
+        if (signer.isPresent()){
+            return  signer.get();
+        }
+        return null;
+    }
+
+    @GetMapping("findSignerByCni/{cniSigner}")
+    public List<Signataire_V2> trouverSignerParCNI(@PathVariable String cniSigner){
+        List<Signataire_V2> signerList = signataireRepository_V2.findSignataireByCni(cniSigner);
+        return signerList;
+    }
+
+    @PostMapping("ajoutOperation")
+    public OperationSignature trouverSignerParId(@RequestBody OperationSignature operationSignature){
+        return operationRepository.save(operationSignature);
+    }
+
+    @GetMapping("isExistedWorker/{idWorker}")
+    public boolean verifieWorkerExist(@PathVariable int idWorker){
+        return workerRepository.existsByIdWorker(idWorker);
+    }
+
+    public String decouper_nom(String nomAChanger){
+        if(nomAChanger.contains(" ")){
+            String[] caract = nomAChanger.split(" ");
+            nomAChanger = caract[0]+ "_";
+            for(int i = 1; i < caract.length ; i++){
+                nomAChanger += caract[i].charAt(0) ;
+            }
+        }
+        if (nomAChanger.length() > 30){
+            nomAChanger = nomAChanger.substring(0,30);
+        }
+
+        return nomAChanger;
+    }
+
+    public boolean isExistSignerKey(String alias) throws MalformedURLException {
+        System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
+        System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
+        System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
+        System.setProperty("javax.net.ssl.trustStorePassword", prop.getProperty("password_keystore"));
+        URL wsdlLocation = new URL(prop.getProperty("wsdlUrl"));
+        AdminWSService service = new AdminWSService(wsdlLocation);
+        port = service.getPort(AdminWS.class);
+        boolean resultat = false;
+        try {
+            connectionSetup(port);
+        } catch (IOException | GeneralSecurityException e1) {
+            e1.printStackTrace();
+        }
+        List<KeyTestResult> result = null;
+        try {
+            // Appeler l'opération
+            int signerId = Integer.parseInt(prop.getProperty("idCryptoTokenWrap")) ;  // Remplacez par les valeurs appropriées
+            String keyAlgorithm = "RSA";
+            String keySpec = "2048";
+            String authCode = prop.getProperty("authCodeSignKey");
+            result = port.testKey(signerId,alias,authCode);
+            if(result.get(0).isSuccess()){
+                resultat = true;
+            }
+            // Afficher le résultat
+            // System.out.println("Résultat de l'opération : " + result);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return resultat;
+    }
+
+    private void connectionSetup(AdminWS port)
+            throws IOException, GeneralSecurityException {
+
+        HTTPConduit httpConduit = (HTTPConduit) ClientProxy.getClient(port).getConduit();
+
+        TLSClientParameters tlsCP = new TLSClientParameters();
+        String keyPassword = prop.getProperty("password_keystore");
+        //System.out.println(keyPassword);
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        String keyStoreLoc = prop.getProperty("keystore");
+        keyStore.load(new FileInputStream(keyStoreLoc), keyPassword.toCharArray());
+        KeyManager[] myKeyManagers = getKeyManagers(keyStore, keyPassword);
+        tlsCP.setKeyManagers(myKeyManagers);
+
+        KeyStore trustStore = KeyStore.getInstance("JKS");
+        String trustStoreLoc = prop.getProperty("trustore1");
+        trustStore.load(new FileInputStream(trustStoreLoc), keyPassword.toCharArray());
+        TrustManager[] myTrustStoreKeyManagers = getTrustManagers(trustStore);
+        tlsCP.setTrustManagers(myTrustStoreKeyManagers);
+
+        tlsCP.setDisableCNCheck(true);
+
+        httpConduit.setTlsClientParameters(tlsCP);
 
     }
 }

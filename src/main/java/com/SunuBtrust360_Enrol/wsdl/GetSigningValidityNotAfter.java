@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour getSigningValidityNotAfter complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="getSigningValidityNotAfter"&gt;
@@ -34,7 +34,7 @@ public class GetSigningValidityNotAfter {
     protected int workerId;
 
     /**
-     * Obtient la valeur de la propriété workerId.
+     * Obtient la valeur de la propriï¿½tï¿½ workerId.
      * 
      */
     public int getWorkerId() {
@@ -42,7 +42,7 @@ public class GetSigningValidityNotAfter {
     }
 
     /**
-     * Définit la valeur de la propriété workerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ workerId.
      * 
      */
     public void setWorkerId(int value) {

@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour removeAuthorizedClient complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="removeAuthorizedClient"&gt;
@@ -37,7 +37,7 @@ public class RemoveAuthorizedClient {
     protected AuthorizedClient authClient;
 
     /**
-     * Obtient la valeur de la propriété workerId.
+     * Obtient la valeur de la propriï¿½tï¿½ workerId.
      * 
      */
     public int getWorkerId() {
@@ -45,7 +45,7 @@ public class RemoveAuthorizedClient {
     }
 
     /**
-     * Définit la valeur de la propriété workerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ workerId.
      * 
      */
     public void setWorkerId(int value) {
@@ -53,7 +53,7 @@ public class RemoveAuthorizedClient {
     }
 
     /**
-     * Obtient la valeur de la propriété authClient.
+     * Obtient la valeur de la propriï¿½tï¿½ authClient.
      * 
      * @return
      *     possible object is
@@ -65,7 +65,7 @@ public class RemoveAuthorizedClient {
     }
 
     /**
-     * Définit la valeur de la propriété authClient.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ authClient.
      * 
      * @param value
      *     allowed object is

@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour removeKey complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schema suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="removeKey"&gt;
@@ -37,7 +37,7 @@ public class RemoveKey {
     protected String alias;
 
     /**
-     * Obtient la valeur de la propriété signerId.
+     * Obtient la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public int getSignerId() {
@@ -45,7 +45,7 @@ public class RemoveKey {
     }
 
     /**
-     * Définit la valeur de la propriété signerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public void setSignerId(int value) {
@@ -53,7 +53,7 @@ public class RemoveKey {
     }
 
     /**
-     * Obtient la valeur de la propriété alias.
+     * Obtient la valeur de la propriï¿½tï¿½ alias.
      * 
      * @return
      *     possible object is
@@ -65,7 +65,7 @@ public class RemoveKey {
     }
 
     /**
-     * Définit la valeur de la propriété alias.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ alias.
      * 
      * @param value
      *     allowed object is

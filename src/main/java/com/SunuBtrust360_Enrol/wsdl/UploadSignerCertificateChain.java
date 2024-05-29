@@ -11,7 +11,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour uploadSignerCertificateChain complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="uploadSignerCertificateChain"&gt;
@@ -42,7 +42,7 @@ public class UploadSignerCertificateChain {
     protected String scope;
 
     /**
-     * Obtient la valeur de la propriété signerId.
+     * Obtient la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public int getSignerId() {
@@ -50,7 +50,7 @@ public class UploadSignerCertificateChain {
     }
 
     /**
-     * Définit la valeur de la propriété signerId.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ signerId.
      * 
      */
     public void setSignerId(int value) {
@@ -86,7 +86,7 @@ public class UploadSignerCertificateChain {
     }
 
     /**
-     * Obtient la valeur de la propriété scope.
+     * Obtient la valeur de la propriï¿½tï¿½ scope.
      * 
      * @return
      *     possible object is
@@ -98,7 +98,7 @@ public class UploadSignerCertificateChain {
     }
 
     /**
-     * Définit la valeur de la propriété scope.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ scope.
      * 
      * @param value
      *     allowed object is

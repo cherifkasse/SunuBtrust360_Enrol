@@ -1,7 +1,7 @@
 spring:
   datasource:
     driver-class-name: org.sqlite.JDBC
-    url: jdbc:sqlite:D:/bdd/EnrolDB
+    url: jdbc:sqlite:D:/bdd2/bdd100/EnrolDB
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
@@ -12,7 +12,7 @@ application:
   security:
     jwt:
       secret-key: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-      expiration: 86400000 # 1 jour
+      expiration: 600000  # 1O minutes
       refresh-token:
         expiration: 604800000 # 7 jours
 

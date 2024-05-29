@@ -65,13 +65,20 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests((auth) ->
                         auth.requestMatchers(mvcMatcherBuilder.pattern("https://sunusign2ts2.btrust360.com/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/sunubtrust360/signataire/**")).permitAll()
+                                .requestMatchers(mvcMatcherBuilder.pattern("/sunubtrust360/signataire/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/signataire/enroll_V2")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/test/**")).permitAll()
+                                .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui.html")).permitAll() // Autoriser l'accès à Swagger UI
+                                .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui/**")).permitAll()
+                                .requestMatchers(mvcMatcherBuilder.pattern("/v3/api-docs")).permitAll() // Autoriser l'accès à la documentation Swagger JSON
+                                .requestMatchers(mvcMatcherBuilder.pattern("/webjars/**")).permitAll() // Autoriser l'accès aux ressources WebJars de Swagger
                                 .anyRequest().authenticated()
+
                         );
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+
 }

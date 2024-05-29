@@ -9,7 +9,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour InvalidWorkerIdException complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schema suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="InvalidWorkerIdException"&gt;
@@ -34,7 +34,7 @@ public class InvalidWorkerIdException {
     protected String message;
 
     /**
-     * Obtient la valeur de la propriété message.
+     * Obtient la valeur de la propriï¿½tï¿½ message.
      * 
      * @return
      *     possible object is
@@ -46,7 +46,7 @@ public class InvalidWorkerIdException {
     }
 
     /**
-     * Définit la valeur de la propriété message.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ message.
      * 
      * @param value
      *     allowed object is

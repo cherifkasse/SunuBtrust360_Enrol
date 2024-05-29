@@ -11,7 +11,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour queryArchiveWithIds complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="queryArchiveWithIds"&gt;
@@ -68,7 +68,7 @@ public class QueryArchiveWithIds {
     }
 
     /**
-     * Obtient la valeur de la propriété includeData.
+     * Obtient la valeur de la propriï¿½tï¿½ includeData.
      * 
      */
     public boolean isIncludeData() {
@@ -76,7 +76,7 @@ public class QueryArchiveWithIds {
     }
 
     /**
-     * Définit la valeur de la propriété includeData.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ includeData.
      * 
      */
     public void setIncludeData(boolean value) {

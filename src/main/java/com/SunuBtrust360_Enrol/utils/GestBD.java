@@ -97,8 +97,8 @@ public class GestBD {
             stmt.setString(5, String.format("%1$s", dateCreation));
             stmt.setString(6, String.format("%1$s", dateExpiration));
             stmt.setString(7,String.format("%1$s", signer.getEmail()));
-            stmt.setString(8, String.format("%1$s", signer.getNom_application()));
-            stmt.setString(9, String.format("%1$s", signer.getNom_entreprise()));
+            stmt.setString(8, String.format("%1$s", signer.getNomApplication()));
+            stmt.setString(9, String.format("%1$s", signer.getNomEntreprise()));
             stmt.setString(10, String.format("%1$s", signer.getNomSignataire()));
 
             stmt.executeUpdate();

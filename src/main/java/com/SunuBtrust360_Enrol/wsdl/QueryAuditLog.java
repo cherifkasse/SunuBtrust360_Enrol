@@ -11,7 +11,7 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * <p>Classe Java pour queryAuditLog complex type.
  * 
- * <p>Le fragment de schéma suivant indique le contenu attendu figurant dans cette classe.
+ * <p>Le fragment de schma suivant indique le contenu attendu figurant dans cette classe.
  * 
  * <pre>
  * &lt;complexType name="queryAuditLog"&gt;
@@ -45,7 +45,7 @@ public class QueryAuditLog {
     protected List<QueryOrdering> ordering;
 
     /**
-     * Obtient la valeur de la propriété startIndex.
+     * Obtient la valeur de la propriï¿½tï¿½ startIndex.
      * 
      */
     public int getStartIndex() {
@@ -53,7 +53,7 @@ public class QueryAuditLog {
     }
 
     /**
-     * Définit la valeur de la propriété startIndex.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ startIndex.
      * 
      */
     public void setStartIndex(int value) {
@@ -61,7 +61,7 @@ public class QueryAuditLog {
     }
 
     /**
-     * Obtient la valeur de la propriété max.
+     * Obtient la valeur de la propriï¿½tï¿½ max.
      * 
      */
     public int getMax() {
@@ -69,7 +69,7 @@ public class QueryAuditLog {
     }
 
     /**
-     * Définit la valeur de la propriété max.
+     * Dï¿½finit la valeur de la propriï¿½tï¿½ max.
      * 
      */
     public void setMax(int value) {
