@@ -27,15 +27,18 @@ public class SignataireRequest_V2 {
     @NotBlank(message = "Le champ 'telephone' est obligatoire")
     private String telephone;
 
+    private Integer idApplication;
+
 
     public SignataireRequest_V2() {
 
     }
 
-    public SignataireRequest_V2(String nomSignataire, String cni, String telephone) {
+    public SignataireRequest_V2(String nomSignataire, String cni, String telephone,Integer idApplication) {
         this.nomSignataire = nomSignataire;
         this.cni = cni;
         this.telephone = telephone;
+        this.idApplication = idApplication;
     }
 
     public SignataireRequest_V2(String nomSignataire, String cni) {

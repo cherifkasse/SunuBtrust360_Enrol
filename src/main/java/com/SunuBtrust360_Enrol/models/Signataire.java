@@ -48,9 +48,29 @@ public class Signataire {
 
     private String signerKey;
 
+    @NotBlank(message = "Veuillez renseigner le cni ou le passport!")
+    private String cniPassport;
 
+
+    private boolean isDisabled;
+
+    public boolean isDisabled() {
+        return isDisabled;
+    }
+
+    public void setDisabled(boolean disabled) {
+        isDisabled = disabled;
+    }
 
     public Signataire(){}
+
+    public String getCniPassport() {
+        return cniPassport;
+    }
+
+    public void setCniPassport(String cniPassport) {
+        this.cniPassport = cniPassport;
+    }
 
     public String getSignerKey() {
         return signerKey;

@@ -35,7 +35,11 @@ public class Signataire_V2 {
 
     private String signerKey;
 
+    @Column(name = "id_application", nullable = true)
+    private Integer idApplication;
+
     private String dateCreation;
+    private String dateRenouvellement;
 
     private String dateExpiration;
 

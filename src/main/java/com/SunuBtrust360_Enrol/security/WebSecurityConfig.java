@@ -64,10 +64,12 @@ public class WebSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests((auth) ->
                         auth.requestMatchers(mvcMatcherBuilder.pattern("https://sunusign2ts2.btrust360.com/**")).permitAll()
-                                .requestMatchers(mvcMatcherBuilder.pattern("/sunubtrust360/signataire/**")).permitAll()
-                                .requestMatchers(mvcMatcherBuilder.pattern("/sunubtrust360/signataire/**")).permitAll()
-                                .requestMatchers(mvcMatcherBuilder.pattern("/signataire/enroll_V2")).permitAll()
+                                .requestMatchers(mvcMatcherBuilder.pattern("/v0.0.2/sunubtrust360v0.0.2/signataire/**")).permitAll()
+                                .requestMatchers(mvcMatcherBuilder.pattern("/v0.0.2/sunubtrust360v0.0.2/signataire/**")).permitAll()
+                                .requestMatchers(mvcMatcherBuilder.pattern("/v0.0.2/signataire/enroll_V2")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/**")).permitAll()
+                                .requestMatchers(mvcMatcherBuilder.pattern("/v0.0.2/**")).permitAll()
+                                .requestMatchers(mvcMatcherBuilder.pattern("/v0.0.2/revoke/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/test/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui.html")).permitAll() // Autoriser l'accès à Swagger UI
                                 .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui/**")).permitAll()

@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 @RestController
 
 //@CrossOrigin(origins = {"http://localhost:8080","http://localhost:4200"})
-@RequestMapping("/")
+@RequestMapping("/v0.0.2/")
 @Hidden
 public class AuthController {
 

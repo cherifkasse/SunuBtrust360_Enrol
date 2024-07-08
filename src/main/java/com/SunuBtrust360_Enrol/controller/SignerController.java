@@ -2,13 +2,13 @@ package com.SunuBtrust360_Enrol.controller;
 
 
 import com.SunuBtrust360_Enrol.config.CustomHttpRequestFactory;
-import com.SunuBtrust360_Enrol.models.OperationSignature;
-import com.SunuBtrust360_Enrol.models.PieceIdentite;
-import com.SunuBtrust360_Enrol.models.Signataire;
-import com.SunuBtrust360_Enrol.models.Signataire_V2;
+import com.SunuBtrust360_Enrol.models.*;
+import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest;
+import com.SunuBtrust360_Enrol.payload.request.SignataireRequest;
 import com.SunuBtrust360_Enrol.repository.*;
 import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest_V2;
 import com.SunuBtrust360_Enrol.payload.request.SignataireRequest_V2;
+import com.SunuBtrust360_Enrol.utils.GestSignataire;
 import com.SunuBtrust360_Enrol.wsdl.*;
 import com.SunuBtrust360_Enrol.wsdl_client.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,7 +71,7 @@ import org.springframework.web.multipart.MultipartFile;
  * @created 13/02/2024/02/2024 - 16:06
  */
 @RestController
-@RequestMapping("/signer/")
+@RequestMapping("/v0.0.2/signer/")
 @CrossOrigin(origins = "http://localhost:8080")
 @Api("API de signature")
 @Hidden
@@ -154,13 +154,18 @@ public class SignerController {
     public ResponseEntity<?> enrollSignataire_V2(@Valid @RequestBody SignataireRequest_V2 signataireRequest, BindingResult bindingResult) throws Exception {
         RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
         HttpHeaders headers = new HttpHeaders();
+        String nomSignataire = signataireRequest.getNomSignataire();
+        String idAppAajouter ="";
         headers.setContentType(MediaType.APPLICATION_JSON);
-
+        if(signataireRequest.getIdApplication() != null){
+            nomSignataire = nomSignataire + signataireRequest.getIdApplication();
+            idAppAajouter = signataireRequest.getIdApplication().toString();
+        }
         if (bindingResult.hasErrors()) {
             return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
         }
 
-        String cle_de_signature2 = prop.getProperty("aliasCle") + decouper_nom(signataireRequest.getNomSignataire().trim().toUpperCase());
+        String cle_de_signature2 = prop.getProperty("aliasCle") + decouper_nom(signataireRequest.getNomSignataire().trim().toUpperCase()) + idAppAajouter+ "_" + signataireRequest.getCni();
         if (cle_de_signature2.length() > 30){
             cle_de_signature2 = cle_de_signature2.substring(0, 30);
         }
@@ -177,7 +182,7 @@ public class SignerController {
             ObtenirCertRequest_V2 obtenirCertRequest = new ObtenirCertRequest_V2();
             Signataire_V2 signataire = new Signataire_V2();
 
-            Set<String> champsAttendus = new HashSet<>(Arrays.asList("nomSignataire", "cni", "telephone"));
+            Set<String> champsAttendus = new HashSet<>(Arrays.asList("nomSignataire", "cni", "telephone","idApplication"));
             for (Field field : SignataireRequest_V2.class.getDeclaredFields()) {
                 if (!champsAttendus.contains(field.getName())) {
                     String badRequestMessage = "Champ supplementaire '" + field.getName() + "' non autorise.";
@@ -199,13 +204,18 @@ public class SignerController {
             }
 
             String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getCni().toUpperCase().replaceAll("\\s+", "_");
-            signataire.setNomSignataire(signataireRequest.getNomSignataire());
+            signataire.setNomSignataire(nomSignataire);
             Long pin = pin_generation();
             signataire.setCodePin(encrypterPin(pin.toString()));
             String signKey = generateCryptoToken(alias);
+            System.out.println("SIGNNNNN: "+signKey);
+            if (signKey.length() > 30){
+                signKey = signKey.substring(0, 30);
+            }
             signataire.setSignerKey(signKey);
             signataire.setCni(signataireRequest.getCni());
             signataire.setTelephone(signataireRequest.getTelephone());
+            signataire.setIdApplication(Integer.valueOf(idAppAajouter));
 
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
             obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
@@ -221,6 +231,12 @@ public class SignerController {
 
             EnrollResponse_V2 enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse_V2.class);
             enrollResponse.setCodePin(pin.toString());
+            List<String> certificateChain = enrollResponse.getCertificate_chain();
+            String chaineCertificat = formatCert(enrollResponse.getCertificate());
+
+            List<String> certificateListPem = new ArrayList<>();
+            certificateListPem.add(enrollResponse.getCertificate());
+            importChaine(certificateListPem, alias);
 
             if (response.getStatusCode() == HttpStatus.CREATED) {
                 Date date_creation = new Date();
@@ -246,6 +262,160 @@ public class SignerController {
             logger.error(generalErrorMessage, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
         }
+    }
+    @PostMapping("renew")
+    public ResponseEntity<?> renewSignataire_V2(@Valid @RequestBody SignataireRequest_V2 signataireRequest, BindingResult bindingResult) throws Exception {
+        RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
+        HttpHeaders headers = new HttpHeaders();
+        String nomSignataire = signataireRequest.getNomSignataire();
+        String idAppAajouter ="";
+        GestSignataire gst = new GestSignataire();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        if (bindingResult.hasErrors()) {
+            return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
+        }
+        String cle_de_signature2 = "";
+        int id_app = 0;
+        if (signataireRepository_V2.existsByCni(signataireRequest.getCni())) {
+
+            int idApp = signataireRequest.getIdApplication();
+            List<Signataire_V2> signataireList = signataireRepository_V2.findByNomSignataire(signataireRequest.getNomSignataire());
+            List<Signataire_V2> signataireListCNI = signataireRepository_V2.findSignataireByCni(signataireRequest.getCni());
+            //boolean a = signataireListCNI.get(0).getNomSignataire().equals(signataireRequest.getNomSignataire()+signataireRequest.getIdApplication());
+            System.out.println("C BONNN"+ signataireListCNI.get(0).getNomSignataire());
+            System.out.println("C BONNN"+ signataireRequest.getNomSignataire());
+            Signataire_V2 signer = null;
+            if(signataireListCNI.get(0).getNomSignataire().equals(signataireRequest.getNomSignataire())){
+                signer = signataireListCNI.get(0);
+            }
+            System.out.println("Cccccc"+ signer.getNomSignataire());
+            cle_de_signature2 = signer.getSignerKey();
+            nomSignataire = signer.getNomSignataire();
+            id_app = signer.getIdApplication();
+        }
+        String alias = cle_de_signature2;
+        ObjectMapper objectMapper = new ObjectMapper();
+
+
+        try {
+            ObtenirCertRequest_V2 obtenirCertRequest = new ObtenirCertRequest_V2();
+            Signataire_V2 signataire = new Signataire_V2();
+
+            Set<String> champsAttendus = new HashSet<>(Arrays.asList("nomSignataire", "cni", "telephone","idApplication"));
+            for (Field field : SignataireRequest_V2.class.getDeclaredFields()) {
+                if (!champsAttendus.contains(field.getName())) {
+                    String badRequestMessage = "Champ supplementaire '" + field.getName() + "' non autorise.";
+                    logger.warn(badRequestMessage);
+                    return ResponseEntity.badRequest().body(badRequestMessage);
+                }
+            }
+            if (signataireRequest.getNomSignataire() == null || signataireRequest.getNomSignataire().isEmpty() ||
+                    signataireRequest.getCni() == null || signataireRequest.getCni().isEmpty()) {
+                String badRequestMessage = "Verifiez si vous avez rempli toutes les informations";
+                logger.warn(badRequestMessage);
+                return ResponseEntity.badRequest().body(badRequestMessage);
+            }
+
+
+
+            String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getCni().toUpperCase().replaceAll("\\s+", "_");
+            signataire.setNomSignataire(nomSignataire);
+            Long pin = pin_generation();
+            signataire.setCodePin(encrypterPin(pin.toString()));
+
+            deleteKeySigner(id_app, alias);
+            String signKey = generateCryptoToken(alias);
+            System.out.println("SIGNNNNN: "+signKey);
+            if (signKey.length() > 30){
+                signKey = signKey.substring(0, 30);
+            }
+            signataire.setSignerKey(signKey);
+            signataire.setCni(signataireRequest.getCni());
+            signataire.setTelephone(signataireRequest.getTelephone());
+            signataire.setIdApplication(id_app);
+
+            obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setInclude_chain(true);
+            obtenirCertRequest.setUsername(username);
+            obtenirCertRequest.setPassword(prop.getProperty("defaultPassword"));
+            String subjectDN = "CN=" + signataireRequest.getNomSignataire() + ",O=" + signataireRequest.getCni() + ",C=SN";
+            obtenirCertRequest.setCertificate_request(Connect_WS2(subjectDN, signKey));
+
+            HttpEntity<ObtenirCertRequest_V2> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+
+            EnrollResponse_V2 enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse_V2.class);
+            enrollResponse.setCodePin(pin.toString());
+            List<String> certificateChain = enrollResponse.getCertificate_chain();
+            String chaineCertificat = formatCert(enrollResponse.getCertificate());
+
+            List<String> certificateListPem = new ArrayList<>();
+            certificateListPem.add(enrollResponse.getCertificate());
+            importChaine(certificateListPem, alias);
+
+            if (response.getStatusCode() == HttpStatus.CREATED) {
+                Date date_creation = new Date();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                signataire.setDateCreation(sdf.format(date_creation));
+                signataire.setDateExpiration(calculerDateExpiration2(sdf.format(date_creation)));
+                gst.updateRenouveler2(signataire.getSignerKey(), signataire.getCodePin(), sdf.format(date_creation), calculerDateExpiration2(sdf.format(date_creation)));
+
+                // signataire = signataireRepository_V2.save(signataire);
+                //enrollResponse.setId_signer((int) signataireRepository_V2.count());
+                String responseBodyWithCodePin = objectMapper.writeValueAsString(enrollResponse);
+                logger.info("Renouvellement avec succès: " + responseBodyWithCodePin);
+                return new ResponseEntity<>(responseBodyWithCodePin, HttpStatus.OK);
+            } else {
+                logger.error("Renouvellemen echoué: " + response.getBody());
+                return new ResponseEntity<>(response.getBody(), response.getStatusCode());
+            }
+
+        } catch (HttpStatusCodeException e) {
+            String errorMessage = "Erreur HTTP survenue: " + e.getResponseBodyAsString();
+            logger.error(errorMessage, e);
+            return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
+        } catch (Exception e) {
+            String generalErrorMessage = "Une erreur inattendue est apparue: " + e.getMessage();
+            logger.error(generalErrorMessage, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
+        }
+    }
+    public boolean deleteKeySigner(@PathVariable int idWorker, @PathVariable String alias) throws MalformedURLException{
+        boolean  result=false;
+        System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
+        System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
+        System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
+        System.setProperty("javax.net.ssl.trustStorePassword", prop.getProperty("password_keystore"));
+        URL wsdlLocation = new URL(prop.getProperty("wsdlUrl") );
+        AdminWSService service = new AdminWSService(wsdlLocation);
+        port = service.getPort(AdminWS.class);
+        try {
+            connectionSetup(port);
+        } catch (IOException | GeneralSecurityException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+        }
+        try {
+            result=port.removeKey(idWorker,alias);
+
+            return result;
+
+        } catch (AdminNotAuthorizedException_Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (CryptoTokenOfflineException_Exception e) {
+            throw new RuntimeException(e);
+        } catch (KeyStoreException_Exception e) {
+            throw new RuntimeException(e);
+        } catch (SignServerException_Exception e) {
+            throw new RuntimeException(e);
+        } catch (InvalidWorkerIdException_Exception e) {
+            throw new RuntimeException(e);
+        }
+        return result;
     }
     /*public ResponseEntity<?> enrollSignataire_V2(@Valid @RequestBody SignataireRequest_V2 signataireRequest, BindingResult bindingResult) throws Exception {
         RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
@@ -442,7 +612,8 @@ public class SignerController {
     }
     @PostMapping("encrypt/{pin}")
     public String encrypterPin(@PathVariable String pin) {
-        try{
+        try {
+            logger.info("########DEBUT PROCESSUS DU CHIFFREMENT DU CODE PIN#########");
             SecretKey secretKey = getSecretKey(prop.getProperty("cleDeSecret"));
             Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(IV));
@@ -464,16 +635,22 @@ public class SignerController {
             //System.out.println("Chaîne avant remplacement : " + encodedPin);
             //System.out.println("Chaîne après remplacement : " + replacedString);
             // Afficher les indices des "/"
+            logger.info("Code PIN chiffré avec succès !");
+            logger.info("########PROCESSUS DU CHIFFREMENT DU CODE PIN TERMINE#########");
             return replacedString.toString();
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
-                 | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             e.printStackTrace();
-            return "Error during encryption.";
+            String msg = "Erreur lors du chiffrement.";
+            logger.error(msg,e);
+            logger.info("########PROCESSUS DU CHIFFREMENT DU CODE PIN TERMINE#########");
+            return msg;
         }
     }
     @PostMapping("decrypt/{pinEncrypted}")
     public String decryptPin(@PathVariable String pinEncrypted) {
         try {
+            logger.info("########DEBUT PROCESSUS DU DECHIFFREMENT DU CODE PIN#########");
             SecretKey secretKey = getSecretKey(prop.getProperty("cleDeSecret"));
             Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(IV));
@@ -495,12 +672,17 @@ public class SignerController {
             } else {
                 pinEncrypted = parts[0];
                 byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(pinEncrypted));
+                logger.info("Code PIN déchiffré avec succès !");
+                logger.info("########PROCESSUS DU DECHIFFREMENT DU CODE PIN TERMINE#########");
                 return new String(decryptedBytes, StandardCharsets.UTF_8);
             }
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
-                 | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             e.printStackTrace();
-            return "Error during decryption.";
+            String msg= "Erreur lors du déchiffrement du code PIN";
+            logger.error(msg,e);
+            logger.info("########PROCESSUS DU DECHIFFREMENT DU CODE PIN TERMINE#########");
+            return msg;
         }
     }
     ////////////////////////////////////////////////////////////////////////////////////
@@ -1137,6 +1319,18 @@ public class SignerController {
     public List<Signataire_V2> trouverSignerParCNI(@PathVariable String cniSigner){
         List<Signataire_V2> signerList = signataireRepository_V2.findSignataireByCni(cniSigner);
         return signerList;
+    }
+
+    @GetMapping("findSignerBynomSigner/{nomSigner}")
+    public List<Signataire_V2> trouverSignerParNomSigner(@PathVariable String nomSigner){
+        List<Signataire_V2> signerList = signataireRepository_V2.findSignataireByNomSignataire(nomSigner);
+        return signerList;
+    }
+
+    @GetMapping("findSignerByIdApp/{idApp}")
+    public boolean trouverSignerParIdApp(@PathVariable Integer idApp){
+        boolean isWorker = workerRepository.existsByIdWorker(idApp);
+        return isWorker;
     }
 
     @PostMapping("ajoutOperation")

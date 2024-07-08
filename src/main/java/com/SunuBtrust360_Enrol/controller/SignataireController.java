@@ -2,12 +2,14 @@ package com.SunuBtrust360_Enrol.controller;
 
 import com.SunuBtrust360_Enrol.config.CustomHttpRequestFactory;
 import com.SunuBtrust360_Enrol.models.Signataire;
+
 import com.SunuBtrust360_Enrol.models.Worker;
 import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest;
 import com.SunuBtrust360_Enrol.payload.request.RevokeRequest;
 import com.SunuBtrust360_Enrol.payload.request.SignataireRequest;
-import com.SunuBtrust360_Enrol.repository.SignataireRepository;
 import com.SunuBtrust360_Enrol.repository.WorkerRepository;
+import com.SunuBtrust360_Enrol.repository.SignataireRepository;
+
 import com.SunuBtrust360_Enrol.utils.GestSignataire;
 import com.SunuBtrust360_Enrol.wsdl.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -82,7 +84,7 @@ import java.util.regex.Pattern;
  * @created 26/10/2023/10/2023 - 12:57
  */
 @RestController
-@RequestMapping("/signataire/")
+@RequestMapping("/v0.0.2/signataire/")
 @CrossOrigin(origins = "http://localhost:8080")
 @Component
 @Tag(name = "Signataire")
@@ -91,7 +93,7 @@ public class SignataireController {
 
 
     private static final String EMAIL_PATTERN =
-            "^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$";
+            "^[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[A-Za-z]{2,})$";
     private static final String ALGORITHM = "AES";
     private static final String MODE = "CBC";
     private static final String PADDING = "PKCS5Padding";
@@ -304,6 +306,7 @@ public class SignataireController {
             signataire.setEmail(signataireRequest.getEmail());
             signataire.setNomEntreprise(signataireRequest.getNom_entreprise());
             signataire.setCleDeSignature(cle_de_signature);
+            signataire.setCniPassport(signataireRequest.getCniPassport());
 
             ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
@@ -654,6 +657,7 @@ public class SignataireController {
     @PostMapping("encrypt/{pin}")
     public String encrypterPin(@PathVariable String pin) {
         try {
+            logger.info("########DEBUT PROCESSUS DU CHIFFREMENT DU CODE PIN#########");
             SecretKey secretKey = getSecretKey(prop.getProperty("cleDeSecret"));
             Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(IV));
@@ -675,11 +679,16 @@ public class SignataireController {
             //System.out.println("Chaîne avant remplacement : " + encodedPin);
             //System.out.println("Chaîne après remplacement : " + replacedString);
             // Afficher les indices des "/"
+            logger.info("Code PIN chiffré avec succès !");
+            logger.info("########PROCESSUS DU CHIFFREMENT DU CODE PIN TERMINE#########");
             return replacedString.toString();
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
-                 | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             e.printStackTrace();
-            return "Error during encryption.";
+            String msg = "Erreur lors du chiffrement.";
+            logger.error(msg,e);
+            logger.info("########PROCESSUS DU CHIFFREMENT DU CODE PIN TERMINE#########");
+            return msg;
         }
     }
 
@@ -695,6 +704,7 @@ public class SignataireController {
     @Operation(hidden = true)
     public String decryptPin(@PathVariable String pinEncrypted) {
         try {
+            logger.info("########DEBUT PROCESSUS DU DECHIFFREMENT DU CODE PIN#########");
             SecretKey secretKey = getSecretKey(prop.getProperty("cleDeSecret"));
             Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(IV));
@@ -716,12 +726,17 @@ public class SignataireController {
             } else {
                 pinEncrypted = parts[0];
                 byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(pinEncrypted));
+                logger.info("Code PIN déchiffré avec succès !");
+                logger.info("########PROCESSUS DU DECHIFFREMENT DU CODE PIN TERMINE#########");
                 return new String(decryptedBytes, StandardCharsets.UTF_8);
             }
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
-                 | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             e.printStackTrace();
-            return "Error during decryption.";
+            String msg= "Erreur lors du déchiffrement du code PIN";
+            logger.error(msg,e);
+            logger.info("########PROCESSUS DU DECHIFFREMENT DU CODE PIN TERMINE#########");
+            return msg;
         }
     }
 
@@ -1323,6 +1338,7 @@ public class SignataireController {
             signataire.setEmail(signataireRequest.getEmail());
             signataire.setNomEntreprise(signataireRequest.getNom_entreprise());
             signataire.setCleDeSignature(cle_de_signature2);
+            signataire.setCniPassport(signataireRequest.getCniPassport());
 
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
             obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));

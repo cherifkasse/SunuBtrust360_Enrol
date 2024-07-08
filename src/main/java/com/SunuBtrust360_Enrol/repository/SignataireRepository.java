@@ -4,6 +4,7 @@ import com.SunuBtrust360_Enrol.models.Signataire;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,11 +17,14 @@ import java.util.Optional;
 public interface SignataireRepository extends JpaRepository<Signataire, Integer> {
     Optional<Signataire> findByEmail(String email);
     List<Signataire> findByNomSignataire(String nom);
+    List<Signataire> findBySignerKey(String signerKey);
     @Query("SELECT s FROM Signataire s WHERE s.dateCreation LIKE %:dateCreation%")
     List<Signataire> findByDateCreationContaining(@Param("dateCreation") String dateCreation);
 
     List<Signataire> findByCleDeSignature(String cle);
 
+    @Transactional
+    void deleteBySignerKey(String signerKey);
 
     boolean existsByNomSignataire(String nom);
     boolean existsByEmail(String email);

@@ -9,13 +9,9 @@ import org.springframework.boot.web.servlet.support.SpringBootServletInitializer
 @SpringBootApplication
 public class SunuBtrust360EnrolApplication extends SpringBootServletInitializer {
 
-
-
-
 	public static void main(String[] args) {
 		SpringApplication.run(SunuBtrust360EnrolApplication.class, args);
 	}
-
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder){
 		return builder.sources(SunuBtrust360EnrolApplication.class);
 	}

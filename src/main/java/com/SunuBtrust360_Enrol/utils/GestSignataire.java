@@ -67,6 +67,14 @@ public class GestSignataire {
         gd.CloseConnection();
     }
 
+    public void updateRenouveler2(String cle,String pin,String dateRenew, String exp){
+        GestBD gd = new GestBD();
+        gd.OpenConnection();
+        //long idapp=retrouverIdApp(nom);
+        gd.updateRenouveler2(cle,pin,dateRenew,exp);
+        gd.CloseConnection();
+    }
+
     public long deleteSigner(String cle){
         GestBD gd = new GestBD();
         gd.OpenConnection();

@@ -254,4 +254,29 @@ public class GestBD {
         }
 
     }
+
+    public void updateRenouveler2(String cle,String pin, String dateRenew, String exp) {
+
+        try (Connection conn = DriverManager.getConnection(prop.getProperty("urlDB"))) {
+            if (conn != null) {
+                System.out.println("Connexion à SQLite réussie.");
+
+                // Exemple de requête SQL paramétrée
+                String sqlParam = "update signer set code_pin = ?, date_renouvellement=?, date_expiration=?  where signer_key = ?";
+
+                try ( PreparedStatement stmt = conn.prepareStatement(sqlParam)) {
+                    // Remplacer les paramètres par les valeurs réelles
+                    stmt.setString(4, String.format("%1$s", cle));
+                    stmt.setString(1, String.format("%1$s", pin));
+                    stmt.setString(2, String.format("%1$s", dateRenew));
+                    stmt.setString(3, String.format("%1$s", exp));
+                    stmt.executeUpdate();
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+    }
 }

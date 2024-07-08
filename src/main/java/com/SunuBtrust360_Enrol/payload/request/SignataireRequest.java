@@ -56,6 +56,9 @@ public class SignataireRequest {
     @JsonIgnore
     private String password;
 
+    @Schema(description = "Nom de le numéro de CNI ou du passport du signataire")
+    private String cniPassport;
+
     public SignataireRequest() {
     }
 
@@ -177,6 +180,13 @@ public class SignataireRequest {
         this.email = email;
     }
 
+    public String getCniPassport() {
+        return cniPassport;
+    }
+
+    public void setCniPassport(String cniPassport) {
+        this.cniPassport = cniPassport;
+    }
 
     public String getApplication_rattachee() {
         return application_rattachee;
