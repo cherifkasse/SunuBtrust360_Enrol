@@ -27,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -216,7 +217,8 @@ public class SignerController {
             signataire.setCni(signataireRequest.getCni());
             signataire.setTelephone(signataireRequest.getTelephone());
             signataire.setIdApplication(Integer.valueOf(idAppAajouter));
-
+            Worker worker = findNomWorkerById(signataireRequest.getIdApplication());
+            signataire.setNomWorker(worker.getNomWorker());
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
             obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
             obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
@@ -1321,11 +1323,34 @@ public class SignerController {
         return signerList;
     }
 
+    @GetMapping("findNomWorkerById/{id_worker}")
+    public Worker findNomWorkerById(@PathVariable int id_worker){
+        Worker worker = workerRepository.findWorkersByIdWorker(id_worker);
+        return worker;
+    }
+
+
     @GetMapping("findSignerBynomSigner/{nomSigner}")
     public List<Signataire_V2> trouverSignerParNomSigner(@PathVariable String nomSigner){
         List<Signataire_V2> signerList = signataireRepository_V2.findSignataireByNomSignataire(nomSigner);
         return signerList;
     }
+
+    @GetMapping("findSignerBynomWorkerBetweenDate/{date1}/{date2}/{workerName}")
+    public List<Object[] > trouverSignerParNomWorkerBetweenDate(@PathVariable String date1,@PathVariable String date2,@PathVariable String workerName){
+        date1 = date1+" 00:00:00";
+        date2 = date2+" 00:00:00";
+        List<Object[]> signerList = signataireRepository_V2.findSignatairesByDateRangeAndWorkerName(date1,date2,workerName);
+        return signerList;
+    }
+    @GetMapping("findOperationBynomWorkerBetweenDate/{date1}/{date2}/{workerName}")
+    public List<Object[] > trouverOperationParNomWorkerBetweenDate(@PathVariable String date1,@PathVariable String date2,@PathVariable String workerName){
+        date1 = date1+" 00:00:00";
+        date2 = date2+" 00:00:00";
+        List<Object[]> signerList = operationRepository.findOperationByDateRangeAndWorkerName(date1,date2,workerName);
+        return signerList;
+    }
+
 
     @GetMapping("findSignerByIdApp/{idApp}")
     public boolean trouverSignerParIdApp(@PathVariable Integer idApp){
@@ -1417,4 +1442,6 @@ public class SignerController {
         httpConduit.setTlsClientParameters(tlsCP);
 
     }
+
+
 }

@@ -1,7 +1,7 @@
 spring:
   datasource:
     driver-class-name: org.sqlite.JDBC
-    url: jdbc:sqlite:C:/Users/ckasse/Desktop/EnrolDBv0.0.2
+    url: jdbc:sqlite:C:/Users/mdiankha/Desktop/EnrolDBv0.0.2
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
@@ -12,7 +12,7 @@ application:
   security:
     jwt:
       secret-key: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-      expiration: 86400000  # 1O minutes
+      expiration: 600000  # 1O minutes
       refresh-token:
         expiration: 604800000 # 7 jours
 
@@ -37,7 +37,7 @@ server:
       classpath: api_keystore.jks
       password: foo123
       key-store-type: JKS
-  # Chemin vers le truststore
+    # Chemin vers le truststore
     trust-store:
       classpath: api_truststore.jks
       password: foo123
