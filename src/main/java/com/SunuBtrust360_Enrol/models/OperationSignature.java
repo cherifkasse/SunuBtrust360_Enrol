@@ -24,6 +24,6 @@ public class OperationSignature {
 
     private String signerKey;
     private String dateOperation;
-
+    private String nomWorker;
 
 }

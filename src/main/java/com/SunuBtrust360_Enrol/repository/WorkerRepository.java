@@ -14,6 +14,7 @@ import java.util.List;
 public interface WorkerRepository extends JpaRepository<Worker, Long> {
 
     List<Worker> findWorkersByNomWorker(String nomWorker);
+    Worker findWorkersByIdWorker(int id_worker);
 
     boolean existsByIdWorker(int idWorker);
     @Query("SELECT w.nomWorker FROM Worker w")
