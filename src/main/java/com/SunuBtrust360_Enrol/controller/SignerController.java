@@ -167,8 +167,14 @@ public class SignerController {
         }
 
         String cle_de_signature2 = prop.getProperty("aliasCle") + decouper_nom(signataireRequest.getNomSignataire().trim().toUpperCase()) + idAppAajouter+ "_" + signataireRequest.getCni();
-        if (cle_de_signature2.length() > 30){
-            cle_de_signature2 = cle_de_signature2.substring(0, 30);
+
+        if (cle_de_signature2.length() > 50){
+            cle_de_signature2 = cle_de_signature2.substring(0, 50);
+        }
+        if (signataireRequest.getCni().length() > 15){
+            String cniMessage = "Le numéro de cni ne doit pas dépasser 15 caractères";
+            logger.info(cniMessage);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(cniMessage);
         }
         String alias = cle_de_signature2;
         ObjectMapper objectMapper = new ObjectMapper();
@@ -244,7 +250,7 @@ public class SignerController {
                 Date date_creation = new Date();
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 signataire.setDateCreation(sdf.format(date_creation));
-                signataire.setDateExpiration(calculerDateExpiration2(sdf.format(date_creation)));
+                signataire.setDateExpiration(calculerDateExpirationJours(sdf.format(date_creation)));
                 signataire = signataireRepository_V2.save(signataire);
                 enrollResponse.setId_signer((int) signataireRepository_V2.count());
                 String responseBodyWithCodePin = objectMapper.writeValueAsString(enrollResponse);
@@ -362,8 +368,8 @@ public class SignerController {
                 Date date_creation = new Date();
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 signataire.setDateCreation(sdf.format(date_creation));
-                signataire.setDateExpiration(calculerDateExpiration2(sdf.format(date_creation)));
-                gst.updateRenouveler2(signataire.getSignerKey(), signataire.getCodePin(), sdf.format(date_creation), calculerDateExpiration2(sdf.format(date_creation)));
+                signataire.setDateExpiration(calculerDateExpirationJours(sdf.format(date_creation)));
+                gst.updateRenouveler2(signataire.getSignerKey(), signataire.getCodePin(), sdf.format(date_creation), calculerDateExpirationJours(sdf.format(date_creation)));
 
                 // signataire = signataireRepository_V2.save(signataire);
                 //enrollResponse.setId_signer((int) signataireRepository_V2.count());
@@ -538,6 +544,16 @@ public class SignerController {
         LocalDateTime resultDate = dateInTwoYears.minusDays(1);
 
         // Formattez la date résultante (optionnel, pour l'affichage
+        return resultDate.format(formatter);
+    }
+    public String calculerDateExpirationJours(String dateString) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime initialDate = LocalDateTime.parse(dateString, formatter);
+
+        // Ajoutez 2 jours à la date initiale
+        LocalDateTime resultDate = initialDate.plusDays(2);
+
+        // Formatez la date résultante pour l'affichage
         return resultDate.format(formatter);
     }
     /////////////////////////////////////////////////////////////////////////////////////////

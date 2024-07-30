@@ -1,12 +1,16 @@
 package com.SunuBtrust360_Enrol.controller;
 
 import com.SunuBtrust360_Enrol.config.CustomHttpRequestFactory;
+import com.SunuBtrust360_Enrol.models.GestLogs;
 import com.SunuBtrust360_Enrol.models.Signataire;
 
+import com.SunuBtrust360_Enrol.models.User;
 import com.SunuBtrust360_Enrol.models.Worker;
 import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest;
 import com.SunuBtrust360_Enrol.payload.request.RevokeRequest;
 import com.SunuBtrust360_Enrol.payload.request.SignataireRequest;
+import com.SunuBtrust360_Enrol.repository.GestLogsRepository;
+import com.SunuBtrust360_Enrol.repository.UserRepository;
 import com.SunuBtrust360_Enrol.repository.WorkerRepository;
 import com.SunuBtrust360_Enrol.repository.SignataireRepository;
 
@@ -22,12 +26,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.apache.cxf.configuration.jsse.TLSClientParameters;
 import org.apache.cxf.frontend.ClientProxy;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -50,6 +57,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
@@ -102,7 +110,11 @@ public class SignataireController {
     @Autowired
     private final SignataireRepository signataireRepository;
     @Autowired
+    private final UserRepository userRepository;
+    @Autowired
     private final WorkerRepository workerRepository;
+    @Autowired
+    private final GestLogsRepository gestLogsRepository;
     private final Pattern pattern = Pattern.compile(EMAIL_PATTERN);
     private final org.slf4j.Logger logger = LoggerFactory.getLogger(SignataireController.class);
     Properties prop = null;
@@ -123,10 +135,11 @@ public class SignataireController {
     private String jwtSecret;
 
 
-
-    public SignataireController(SignataireRepository signataireRepository, WorkerRepository workerRepository) {
+    public SignataireController(SignataireRepository signataireRepository, WorkerRepository workerRepository, UserRepository userRepository, GestLogsRepository gestLogsRepository) {
         this.signataireRepository = signataireRepository;
         this.workerRepository = workerRepository;
+        this.userRepository = userRepository;
+        this.gestLogsRepository = gestLogsRepository;
         log = LogManager.getLogger(SignataireController.class);
         log.debug("Registration class constructor");
         try (InputStream input = SignataireController.class.getClassLoader().getResourceAsStream("configWin.properties")) {
@@ -192,12 +205,16 @@ public class SignataireController {
     @Operation(hidden = true)
     @PostMapping("affectation/{cleDeSignature}/{nom_app}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> affectationSignataire(@PathVariable String cleDeSignature, @PathVariable String nom_app) {
+    public ResponseEntity<?> affectationSignataire(@PathVariable String cleDeSignature, @PathVariable String nom_app,HttpServletRequest httpServletRequest) {
+        String action = "Opération Affectation";
         if (!signataireRepository.findByCleDeSignature(cleDeSignature).isEmpty()) {
             GestSignataire gst = new GestSignataire();
             gst.affecterGroupe(cleDeSignature, nom_app);
+            gestLogs(httpServletRequest, action, "Affectation réussie !");
             return ResponseEntity.ok().body("Affectation réussie !");
+
         }
+            gestLogs(httpServletRequest, action, "Echec : Probléme lors de l'affectation");
         return ResponseEntity.badRequest().body("Problème lors de l'affectation !");
     }
 
@@ -268,11 +285,12 @@ public class SignataireController {
     ///////////////////////RENOUVELLEMENT PREMIERE VERSION//////////////////////////////////
     @PostMapping("renew")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
-    public ResponseEntity<?> renouvellerSignataire(@Valid @RequestBody SignataireRequest signataireRequest) throws Exception {
+    public ResponseEntity<?> renouvellerSignataire(@Valid @RequestBody SignataireRequest signataireRequest, HttpServletRequest httpServletRequest) throws Exception {
         GestSignataire gst = new GestSignataire();
         ObjectMapper objectMapper = new ObjectMapper();
         String cle_de_signature = "";
         String aliasCle = cle_de_signature;
+        String action = "Opération Renouvellement";
 
         try {
             if (signataireRepository.existsByNomSignataire(signataireRequest.getNomSignataire())
@@ -295,6 +313,7 @@ public class SignataireController {
             if (!validateEmail(signataireRequest.getEmail())) {
                 String badRequestMessage = "Vérifiez le format de l'email";
                 logger.warn(badRequestMessage);
+                gestLogs(httpServletRequest, action, "Echec :"+badRequestMessage);
                 return ResponseEntity.badRequest().body(badRequestMessage);
             }
 
@@ -341,8 +360,10 @@ public class SignataireController {
                 signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
                 gst.updateRenouveler(signataire.getCleDeSignature(), signataire.getCode_pin(), sdf.format(date_creation), calculerDateExpiration2(sdf.format(date_creation)));
                 logger.info("Renouvellement réussi avec succès : " + response.getBody());
+                gestLogs(httpServletRequest, action, "Renouvellement réussi");
             } else {
                 logger.error("Renouvellement echoué: " + response.getBody());
+                gestLogs(httpServletRequest, action, "Echec : Erreur Server");
             }
 
             return response;
@@ -350,10 +371,12 @@ public class SignataireController {
         } catch (HttpStatusCodeException e) {
             String errorMessage = "Une erreur HTTP est survenue: " + e.getResponseBodyAsString();
             logger.error(errorMessage, e);
+            gestLogs(httpServletRequest, action, "Echec : "+errorMessage);
             return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
         } catch (Exception e) {
             String generalErrorMessage = "Une erreur inattendue est survenue: " + e.getMessage();
             logger.error(generalErrorMessage, e);
+            gestLogs(httpServletRequest, action, "Echec : "+generalErrorMessage);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
         }
     }
@@ -445,7 +468,7 @@ public class SignataireController {
         return keyStore;
     }
 
-    /////////////////////////////////////REVOKE////////////////////////////////////////////////////////////
+    /////////////////////////////////////REVOKE Non Utilisé////////////////////////////////////////////////////////////
     @PutMapping("revoke/{endentity_name}")
     @Operation(hidden = true)
     public ResponseEntity<?> revokeSigner(@PathVariable String endentity_name) {
@@ -509,7 +532,7 @@ public class SignataireController {
     @PutMapping("revokeSigner/{cle}")
     @Operation(hidden = true)
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> revokeSignerSansRenew_V2(@PathVariable String cle) throws MalformedURLException {
+    public ResponseEntity<?> revokeSignerSansRenew_V2(@PathVariable String cle,HttpServletRequest httpServletRequest) throws MalformedURLException {
         int statusCodeValue = 0;
         Signataire signataire = new Signataire();
         GestSignataire gst = new GestSignataire();
@@ -517,6 +540,7 @@ public class SignataireController {
         List<Worker> workerList = new ArrayList<>();
         String cle_de_signature = "";
         boolean resultat = false;
+        String action = "Opération de suppression";
 
         try {
             if (!signataireRepository.findByCleDeSignature(cle).isEmpty()) {
@@ -532,19 +556,23 @@ public class SignataireController {
                 gst.deleteSigner(cle_de_signature);
                 String successMessage = "Signataire supprimé avec succès";
                 logger.info(successMessage);
+                gestLogs(httpServletRequest, action, successMessage);
                 return ResponseEntity.ok().body(successMessage);
             } else {
                 String badRequestMessage = "Vérifier les informations du signataire que vous essayez de supprimer";
                 logger.warn(badRequestMessage);
+                gestLogs(httpServletRequest, action, badRequestMessage);
                 return ResponseEntity.badRequest().body(badRequestMessage);
             }
         } catch (HttpStatusCodeException e) {
             String errorMessage = "Une erreur HTTP est survenue: " + e.getResponseBodyAsString();
             logger.error(errorMessage, e);
+            gestLogs(httpServletRequest, action, errorMessage);
             return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
         } catch (Exception e) {
             String generalErrorMessage = "Une erreur inattendue est survenue: " + e.getMessage();
             logger.error(generalErrorMessage, e);
+            gestLogs(httpServletRequest, action, generalErrorMessage);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
         }
     }
@@ -1283,6 +1311,25 @@ public class SignataireController {
         return beginDelimiter + "\n" + insertNewLines(csr) + "\n" + endDelimiter;
     }
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * Methode pour la gestion des logs
+     * **/
+    public void gestLogs( HttpServletRequest httpServletRequest,String action, String message){
+        GestLogs gestLogs = new GestLogs();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Date date_logs = new Date();
+        String role = "OPERATEUR(TRICE)";
+        if(httpServletRequest.getAttribute("role").toString().contains("ADMIN")){
+            role = "ADMINISTRATEUR";
+        }
+        gestLogs.setAuteur(httpServletRequest.getAttribute("email").toString());
+        gestLogs.setDate(sdf.format(date_logs));
+        gestLogs.setEmail(httpServletRequest.getAttribute("username").toString());
+        gestLogs.setRole(role);
+        gestLogs.setAction(action);
+        gestLogs.setMessage(message);
+        gestLogsRepository.save(gestLogs);
+    }
     @PostMapping("enroll_V2")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(summary = "Enrolement Signataire ", description = "Enroler un signataire et lui fournir un certificat")
@@ -1292,11 +1339,16 @@ public class SignataireController {
             @ApiResponse(responseCode = "401", description = "Non autorisé"),
             @ApiResponse(responseCode = "500", description = "Erreur de serveur")
     })
-    public ResponseEntity<?> enrollSignataire_V2(@Valid @RequestBody SignataireRequest signataireRequest) throws Exception {
+
+
+    public ResponseEntity<?> enrollSignataire_V2(@Valid @RequestBody SignataireRequest signataireRequest, HttpServletRequest httpServletRequest) throws Exception {
         RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String action = "Operation d'enrôlement";
 
+       // System.out.println("FFFFFFF: "+user.getUsername());
         String cle_de_signature = "userkey_" + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_");
         String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
         String alias = prop.getProperty("aliasCle") + signataireRequest.getNomSignataire().trim().toUpperCase().replaceAll("\\s+", "_");
@@ -1311,6 +1363,7 @@ public class SignataireController {
         if (isExistSignerKey(alias2)) {
             String conflictMessage = "La clé de signature " + alias2 + " existe déjà";
             logger.info(conflictMessage);
+            gestLogs(httpServletRequest, action,"Echec: "+conflictMessage);
             return ResponseEntity.status(HttpStatus.CONFLICT).body(conflictMessage);
         }
 
@@ -1322,12 +1375,14 @@ public class SignataireController {
             if (!validateEmail(signataireRequest.getEmail())) {
                 String badRequestMessage = "Vérifiez le format de l'email";
                 logger.warn(badRequestMessage);
+                gestLogs(httpServletRequest, action, "Echec: "+badRequestMessage);
                 return ResponseEntity.badRequest().body(badRequestMessage);
             }
 
             if (!signataireRepository.findByCleDeSignature(cle_de_signature2).isEmpty()) {
                 String conflictMessage = "Vous essayez d'enrôler une personne déjà existante !";
                 logger.info(conflictMessage);
+                gestLogs(httpServletRequest, action, "Echec: "+conflictMessage);
                 return ResponseEntity.badRequest().body(conflictMessage);
             }
 
@@ -1368,13 +1423,14 @@ public class SignataireController {
 
             if (statusCodeValue == 201) {
                 Date date_creation = new Date();
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 signataire.setDateCreation(sdf.format(date_creation));
                 signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
                 signataireRepository.save(signataire);
                 logger.info("Enrollment avec succès: " + response.getBody());
+                gestLogs(httpServletRequest, action, "Enrôlement réussi");
             } else {
                 logger.error("Enrollment echoué: " + response.getBody());
+                gestLogs(httpServletRequest, action, "Echec: Erreur Server");
             }
 
             return response;
