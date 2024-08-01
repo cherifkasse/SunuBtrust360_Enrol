@@ -362,6 +362,13 @@ public class SignerController {
 
             List<String> certificateListPem = new ArrayList<>();
             certificateListPem.add(enrollResponse.getCertificate());
+            if(!certificateChain.get(0).isEmpty()){
+                certificateListPem.add(certificateChain.get(0));
+            }
+
+            if(!certificateChain.get(1).isEmpty()){
+                certificateListPem.add(certificateChain.get(1));
+            }
             importChaine(certificateListPem, alias);
 
             if (response.getStatusCode() == HttpStatus.CREATED) {
