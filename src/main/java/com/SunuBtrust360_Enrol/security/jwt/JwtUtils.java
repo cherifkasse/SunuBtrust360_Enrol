@@ -1,4 +1,5 @@
 package com.SunuBtrust360_Enrol.security.jwt;
+import org.springframework.security.core.GrantedAuthority;
 
 import com.SunuBtrust360_Enrol.security.services.UserDetailsImpl;
 import io.jsonwebtoken.*;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.stream.Collectors;
 
 /**
  * @author Cherif KASSE
@@ -32,6 +34,10 @@ public class JwtUtils {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
         return Jwts.builder()
                 .setSubject((userPrincipal.getUsername()))
+                .claim("email", userPrincipal.getEmail())
+                .claim("role", userPrincipal.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.joining(",")))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key(), SignatureAlgorithm.HS256)
@@ -46,7 +52,9 @@ public class JwtUtils {
         return Jwts.parserBuilder().setSigningKey(key()).build()
                 .parseClaimsJws(token).getBody().getSubject();
     }
-
+    public Claims getClaimsFromJwtToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(key()).build().parseClaimsJws(token).getBody();
+    }
     public boolean validateJwtToken(String authToken){
         try{
             Jwts.parserBuilder().setSigningKey(key()).build().parse(authToken);

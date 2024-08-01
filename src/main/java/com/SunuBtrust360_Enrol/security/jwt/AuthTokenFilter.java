@@ -1,6 +1,7 @@
 package com.SunuBtrust360_Enrol.security.jwt;
 
 import com.SunuBtrust360_Enrol.security.services.UserDetailsServiceImpl;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,11 +33,20 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        String username = null;
+        String maillUser = null;
+        String roleUser = null;
+        String nomUser = null;
         try{
             String jwt = parseJwt(request);
             if(jwt != null && jwtUtils.validateJwtToken(jwt)){
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                username = jwtUtils.getUserNameFromJwtToken(jwt);
+                Claims claims = jwtUtils.getClaimsFromJwtToken(jwt);
+                nomUser = claims.getSubject();
+                maillUser = claims.get("email", String.class);
+                roleUser = claims.get("role", String.class);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
@@ -48,6 +58,9 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         }catch (Exception e){
             logger.error("Cannot set user authentication: {}", e);
         }
+        request.setAttribute("username", username);
+        request.setAttribute("email", maillUser);
+        request.setAttribute("role", roleUser);
         filterChain.doFilter(request, response);
     }
 

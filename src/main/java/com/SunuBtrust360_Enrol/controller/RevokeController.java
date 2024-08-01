@@ -6,6 +6,7 @@ import com.SunuBtrust360_Enrol.payload.request.DemandeRevocationRequest;
 import com.SunuBtrust360_Enrol.payload.request.RevokeRequest;
 import com.SunuBtrust360_Enrol.repository.*;
 import com.SunuBtrust360_Enrol.wsdl.*;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.cxf.configuration.jsse.TLSClientParameters;
 import org.apache.cxf.frontend.ClientProxy;
 import org.apache.cxf.transport.http.HTTPConduit;
@@ -62,12 +63,16 @@ public class RevokeController {
 
     CustomHttpRequestFactory customFact = new CustomHttpRequestFactory();
 
-    public RevokeController(RevokeRepository revokeRepository, DemandeRevocationRepository demandeRevocationRepository,ListeRevocationRepository listeRevocationRepository,SignataireRepository signataireRepository,WorkerRepository workerRepository) {
+    @Autowired
+    private final GestLogsRepository gestLogsRepository;
+
+    public RevokeController(RevokeRepository revokeRepository, DemandeRevocationRepository demandeRevocationRepository,ListeRevocationRepository listeRevocationRepository,SignataireRepository signataireRepository,WorkerRepository workerRepository,GestLogsRepository gestLogsRepository) {
         this.revokeRepository = revokeRepository;
         this.workerRepository = workerRepository;
         this.demandeRevocationRepository = demandeRevocationRepository;
         this.listeRevocationRepository = listeRevocationRepository;
         this.signataireRepository = signataireRepository;
+        this.gestLogsRepository = gestLogsRepository;
         //log = (Logger) LogManager.getLogger(RevokeController.class);
         //log.debug("Registration class constructor");
         try (InputStream input = SignataireController.class.getClassLoader().getResourceAsStream("configWin.properties")) {
@@ -91,6 +96,26 @@ public class RevokeController {
         }
     }
 
+    /**
+     * Methode pour la gestion des logs
+     * **/
+    public void gestLogs(HttpServletRequest httpServletRequest, String action, String message){
+        GestLogs gestLogs = new GestLogs();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Date date_logs = new Date();
+        String role = "OPERATEUR(TRICE)";
+        if(httpServletRequest.getAttribute("role").toString().contains("ADMIN")){
+            role = "ADMINISTRATEUR";
+        }
+        gestLogs.setAuteur(httpServletRequest.getAttribute("email").toString());
+        gestLogs.setDate(sdf.format(date_logs));
+        gestLogs.setEmail(httpServletRequest.getAttribute("username").toString());
+        gestLogs.setRole(role);
+        gestLogs.setAction(action);
+        gestLogs.setMessage(message);
+        gestLogsRepository.save(gestLogs);
+    }
+
     @GetMapping("allReasons")
     public List<Revoke> getAllReasonRevoke(){
         return this.revokeRepository.findAll();
@@ -106,14 +131,18 @@ public class RevokeController {
         return this.listeRevocationRepository.findAll();
     }
 
+
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PostMapping("insertDemandeRevoke")
-    public ResponseEntity<?> insertDemandeRevoke(@RequestBody DemandeRevocationRequest demandeRevocationRequest){
+    public ResponseEntity<?> insertDemandeRevoke(@RequestBody DemandeRevocationRequest demandeRevocationRequest, HttpServletRequest httpServletRequest){
         logger.info("#######Demande Révocation#######");
+        String action = "Action Demande de révocation";
         if(demandeRevocationRequest.getIdSignataire() == null || demandeRevocationRequest.getNomSignataire()==null
         || demandeRevocationRequest.getSignerKey()== null || demandeRevocationRequest.getMotif()==null){
             String retourMessage = "Veuillez remplir tous les champs";
             logger.info(retourMessage);
+            gestLogs(httpServletRequest, action,"Echec: "+retourMessage);
+
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(retourMessage);
         }
         try{
@@ -145,21 +174,25 @@ public class RevokeController {
             listeRevocationRepository.save(listeRevocation);
             messageAjout = "Ajout demande de révocation terminée avec succès";
             logger.info(messageAjout);
+            gestLogs(httpServletRequest, action,messageAjout);
             return ResponseEntity.status(HttpStatus.OK).body("Demande de révocation envoyée!");
         }catch (HttpStatusCodeException e) {
             String errorMessage = "Erreur HTTP survenue: " + e.getResponseBodyAsString();
             logger.error(errorMessage, e);
+            gestLogs(httpServletRequest, action,errorMessage);
             return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
         } catch (Exception e) {
             String generalErrorMessage = "Une erreur inattendue est apparue: " + e.getMessage();
             logger.error(generalErrorMessage, e);
+            gestLogs(httpServletRequest, action,generalErrorMessage);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
         }
 
     }
     ////////////////////////////////////////////////////////////ANNULER LA DEMANDE//////////////////////
     @PostMapping("annulerDemandeRevoke")
-    public ResponseEntity<?> annulerDemandeRevoke(@RequestBody DemandeRevocationRequest demandeRevocationRequest){
+    public ResponseEntity<?> annulerDemandeRevoke(@RequestBody DemandeRevocationRequest demandeRevocationRequest,HttpServletRequest httpServletRequest){
+        String action = "Action Annulation demande de révocation";
         try {
 
             List<ListeRevocation> listeRevocationList = listeRevocationRepository.findBySignerKey(demandeRevocationRequest.getSignerKey());
@@ -168,11 +201,12 @@ public class RevokeController {
             Optional<Signataire> signataireList = signataireRepository.findById(demandeRevocationRequest.getIdSignataire());
             signataireList.get().setDisabled(false);
             demandeRevocationRepository.deleteBySignerKey(demandeRevocationRequest.getSignerKey());
-
+            gestLogs(httpServletRequest, action,"Annulation de la demande de révocation reussie!");
             return ResponseEntity.status(HttpStatus.OK).body("Annulation de la demande de révocation reussie!");
 
             }catch (Exception e) {
             logger.error("Erreur lors de l'annulation de la demande de révocation : ", e);
+            gestLogs(httpServletRequest, action,"Echec: Erreur lors de l'annulation de la demande de révocation: "+e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erreur lors de l'annulation de la demande de révocation. "+ e);
         }
 
@@ -181,7 +215,8 @@ public class RevokeController {
     //////////////////////////PARTIE REVOCATION//////////////////////////////////////////////////////
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("revoke")
-    public ResponseEntity<?> revokeSigner(@RequestBody DemandeRevocationRequest demandeRevocationRequest){
+    public ResponseEntity<?> revokeSigner(@RequestBody DemandeRevocationRequest demandeRevocationRequest, HttpServletRequest httpServletRequest){
+        String action = "Action Revocation";
         try {
             logger.info("#############DEBUT REVOCATION########");
             List<Revoke> revokeList = revokeRepository.findByReasonTextContaining(demandeRevocationRequest.getMotif());
@@ -222,16 +257,18 @@ public class RevokeController {
                 deleteKeySigner(worker.getIdWorker(), signataire.getSignerKey());
                 signataireRepository.deleteBySignerKey(demandeRevocationRequest.getSignerKey());
                 demandeRevocationRepository.deleteBySignerKey(demandeRevocationRequest.getSignerKey());
-
+                gestLogs(httpServletRequest, action,"Revocation reussie!");
                 logger.info("Revocation avec succès ########");
                 return ResponseEntity.status(HttpStatus.OK).body("Revocation reussie!");
 
             }else {
                 logger.error("Erreur lors de l'appel API de révocation : " + response.getBody());
+                gestLogs(httpServletRequest, action,"Echec: Erreur lors de l'appel API de révocation: " + response.getBody());
                 return ResponseEntity.status(statusCode).body("Erreur lors de l'appel API de révocation. "+ response.getBody());
             }
         }catch (Exception e) {
             logger.error("Erreur lors de la révocation : ", e);
+            gestLogs(httpServletRequest, action,"Echec: Erreur lors de la révocation: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erreur interne du serveur. "+ e);
         }
     }
