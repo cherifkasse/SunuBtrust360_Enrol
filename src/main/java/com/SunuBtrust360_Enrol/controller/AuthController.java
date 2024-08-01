@@ -1,17 +1,20 @@
 package com.SunuBtrust360_Enrol.controller;
 
 import com.SunuBtrust360_Enrol.models.ERole;
+import com.SunuBtrust360_Enrol.models.GestLogs;
 import com.SunuBtrust360_Enrol.models.Role;
 import com.SunuBtrust360_Enrol.models.User;
 import com.SunuBtrust360_Enrol.payload.request.LoginRequest;
 import com.SunuBtrust360_Enrol.payload.request.SignupRequest;
 import com.SunuBtrust360_Enrol.payload.response.JwtResponse;
 import com.SunuBtrust360_Enrol.payload.response.MessageResponse;
+import com.SunuBtrust360_Enrol.repository.GestLogsRepository;
 import com.SunuBtrust360_Enrol.repository.RoleRepository;
 import com.SunuBtrust360_Enrol.repository.UserRepository;
 import com.SunuBtrust360_Enrol.security.jwt.JwtUtils;
 import com.SunuBtrust360_Enrol.security.services.UserDetailsImpl;
 import io.swagger.v3.oas.annotations.Hidden;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +25,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -62,30 +64,88 @@ public class AuthController {
     public JdbcTemplate jdbcTemplate;
 
     @Autowired
+    private final GestLogsRepository gestLogsRepository;
+
+
+    @Autowired
     JwtUtils jwtUtils;
     @RequestMapping("/")
     public String hello(){
         return "Goooooooooooddd";
     }
+
+    public AuthController(GestLogsRepository gestLogsRepository,UserRepository userRepository) {
+        this.gestLogsRepository = gestLogsRepository;
+        this.userRepository = userRepository;
+    }
+
+    /**
+     * Methode pour la gestion des logs
+     * **/
+    public void gestLogs(HttpServletRequest httpServletRequest, String action, String message){
+        GestLogs gestLogs = new GestLogs();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Date date_logs = new Date();
+        String role = "-";
+        if(httpServletRequest.getAttribute("role").toString().contains("ADMIN")){
+            role = "ADMINISTRATEUR";
+        }
+        if(httpServletRequest.getAttribute("role").toString().toUpperCase().contains("USER")){
+            role = "OPERATEUR(TRICE)";
+        }
+
+        gestLogs.setAuteur(httpServletRequest.getAttribute("email").toString());
+        gestLogs.setDate(sdf.format(date_logs));
+        gestLogs.setEmail(httpServletRequest.getAttribute("username").toString());
+        gestLogs.setRole(role);
+        gestLogs.setAction(action);
+        gestLogs.setMessage(message);
+        gestLogsRepository.save(gestLogs);
+    }
     @PostMapping("signing")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest){
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList());
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest httpServletRequest) {
+        User user = userRepository.findUserByEmail(loginRequest.getEmail());
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            List<String> roles = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
 
 
-        return ResponseEntity.ok(new JwtResponse(jwt,
-                userDetails.getId(),
-                getNomByEmail(loginRequest.getEmail()),
-                loginRequest.getEmail(),
-                roles
-        ));
+            // Ajouter les informations de l'utilisateur dans la requête pour les logs
+            httpServletRequest.setAttribute("username", loginRequest.getEmail());
+            httpServletRequest.setAttribute("email", user.getUsername());
+            httpServletRequest.setAttribute("role", roles.stream().findFirst().orElse("USER"));
+
+            // Enregistrez l'action de l'utilisateur
+            String action = "Action Connexion";
+            String message = "Connexion réussie";
+            gestLogs(httpServletRequest, action, message);
+
+            return ResponseEntity.ok(new JwtResponse(jwt,
+                    userDetails.getId(),
+                    getNomByEmail(loginRequest.getEmail()),
+                    loginRequest.getEmail(),
+                    roles
+            ));
+        } catch (Exception e) {
+            // Enregistrez l'échec de l'authentification
+            httpServletRequest.setAttribute("username", loginRequest.getEmail());
+            httpServletRequest.setAttribute("email", user.getUsername());  // Utiliser l'email comme username par défaut
+            httpServletRequest.setAttribute("role", "-");
+
+            String action = "Action Connexion";
+            String message = "Echec: Connexion échouée " + e.getMessage();
+            gestLogs(httpServletRequest, action, message);
+
+            return ResponseEntity.status(401).body("Authentication failed: " + e.getMessage());
+        }
     }
 
     @PostMapping("signup")
