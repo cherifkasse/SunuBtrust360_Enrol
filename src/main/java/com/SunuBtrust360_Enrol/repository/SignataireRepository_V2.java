@@ -4,12 +4,14 @@ package com.SunuBtrust360_Enrol.repository;
 
 import com.SunuBtrust360_Enrol.models.Signataire;
 import com.SunuBtrust360_Enrol.models.Signataire_V2;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author Cherif KASSE
@@ -23,6 +25,10 @@ public interface SignataireRepository_V2 extends JpaRepository<Signataire_V2, In
             @Param("date2") String date2,
             @Param("workerName") String workerName);
 
+
+    default Signataire_V2 findLast() {
+        return findAll(Sort.by(Sort.Direction.DESC, "id")).stream().findFirst().orElse(null);
+    }
     List<Signataire_V2> findSignataireByCni(String cni);
     List<Signataire_V2> findByNomSignataire(String nom);
 
@@ -37,4 +43,6 @@ public interface SignataireRepository_V2 extends JpaRepository<Signataire_V2, In
 
     @Override
     long count();
+
+    Optional<Signataire_V2> findByIdSigner(int idSigner);
 }
