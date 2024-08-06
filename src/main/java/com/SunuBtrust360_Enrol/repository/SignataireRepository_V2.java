@@ -43,6 +43,6 @@ public interface SignataireRepository_V2 extends JpaRepository<Signataire_V2, In
 
     @Override
     long count();
-
+//modif
     Optional<Signataire_V2> findByIdSigner(int idSigner);
 }
