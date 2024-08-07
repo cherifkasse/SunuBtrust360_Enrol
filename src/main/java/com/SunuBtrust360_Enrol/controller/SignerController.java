@@ -3,8 +3,6 @@ package com.SunuBtrust360_Enrol.controller;
 
 import com.SunuBtrust360_Enrol.config.CustomHttpRequestFactory;
 import com.SunuBtrust360_Enrol.models.*;
-import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest;
-import com.SunuBtrust360_Enrol.payload.request.SignataireRequest;
 import com.SunuBtrust360_Enrol.repository.*;
 import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest_V2;
 import com.SunuBtrust360_Enrol.payload.request.SignataireRequest_V2;
@@ -27,7 +25,6 @@ import org.apache.logging.log4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.data.repository.query.Param;
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -105,11 +102,16 @@ public class SignerController {
     @Autowired
     private OperationRepository operationRepository;
 
-    public SignerController(SignataireRepository_V2 signataireRepository, SignataireRepository signataireRepository1, WorkerRepository workerRepository, OperationRepository operationRepository) {
+    @Autowired
+    private IdLastSigantaireRepository idLastSigantaireRepository;
+
+    public SignerController(SignataireRepository_V2 signataireRepository, SignataireRepository signataireRepository1, WorkerRepository workerRepository, OperationRepository operationRepository, IdLastSigantaireRepository idLastSigantaireRepository) {
         this.signataireRepository_V2 = signataireRepository;
         this.signataireRepository = signataireRepository1;
         this.workerRepository = workerRepository;
         this.operationRepository = operationRepository;
+        this.idLastSigantaireRepository = idLastSigantaireRepository;
+        this.
         log = LogManager.getLogger(SignerController.class);
         log.debug("Registration class constructor");
         try (InputStream input = SignerController.class.getClassLoader().getResourceAsStream("configWin.properties")) {
@@ -241,9 +243,16 @@ public class SignerController {
             enrollResponse.setCodePin(pin.toString());
             List<String> certificateChain = enrollResponse.getCertificate_chain();
             String chaineCertificat = formatCert(enrollResponse.getCertificate());
-
             List<String> certificateListPem = new ArrayList<>();
             certificateListPem.add(enrollResponse.getCertificate());
+            if(certificateChain.size() == 2){
+               // System.out.println("Import chaine");
+                certificateListPem.add(certificateChain.get(0));
+                certificateListPem.add(certificateChain.get(1));
+
+            }
+
+
             importChaine(certificateListPem, alias);
 
             if (response.getStatusCode() == HttpStatus.CREATED) {
@@ -251,8 +260,23 @@ public class SignerController {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 signataire.setDateCreation(sdf.format(date_creation));
                 signataire.setDateExpiration(calculerDateExpirationJours(sdf.format(date_creation)));
+                Signataire_V2 lastSigner = signataireRepository_V2.findLast();
+                List<IdLastSignataire> listeIdLastSignataire = idLastSigantaireRepository.findAll();
+                IdLastSignataire idLastSignataire = new IdLastSignataire();
+                if (listeIdLastSignataire.isEmpty()) {
+                    idLastSignataire.setLastIdSignataire(lastSigner.getIdSigner()+1);
+                    idLastSigantaireRepository.save(idLastSignataire);
+                }
+                else{
+                    idLastSignataire = idLastSigantaireRepository.findById(1);
+                    idLastSignataire.setLastIdSignataire(idLastSignataire.getLastIdSignataire()+1);
+                    idLastSigantaireRepository.save(idLastSignataire);
+                }
+                signataire.setIdSigner(idLastSignataire.getLastIdSignataire());
                 signataire = signataireRepository_V2.save(signataire);
-                enrollResponse.setId_signer((int) signataireRepository_V2.count());
+
+
+                enrollResponse.setId_signer(idLastSignataire.getLastIdSignataire());
                 String responseBodyWithCodePin = objectMapper.writeValueAsString(enrollResponse);
                 logger.info("Enrollment avec succès: " + responseBodyWithCodePin);
                 return new ResponseEntity<>(responseBodyWithCodePin, HttpStatus.OK);
@@ -362,13 +386,13 @@ public class SignerController {
 
             List<String> certificateListPem = new ArrayList<>();
             certificateListPem.add(enrollResponse.getCertificate());
-            if(!certificateChain.get(0).isEmpty()){
+            if(certificateChain.size() == 2){
+                // System.out.println("Import chaine");
                 certificateListPem.add(certificateChain.get(0));
+                certificateListPem.add(certificateChain.get(1));
+
             }
 
-            if(!certificateChain.get(1).isEmpty()){
-                certificateListPem.add(certificateChain.get(1));
-            }
             importChaine(certificateListPem, alias);
 
             if (response.getStatusCode() == HttpStatus.CREATED) {
@@ -931,7 +955,7 @@ public class SignerController {
     @PostMapping("signature/{id_signer}")
     public ResponseEntity<?> signDocument(@RequestParam(value="workerId",required = false) Integer idWorker,@RequestParam("filereceivefile") MultipartFile file,@RequestParam("codePin") String codePin,@PathVariable Integer id_signer) throws IOException {
 
-        Optional<Signataire_V2> signataireV2Optional = signataireRepository_V2.findById(id_signer);
+        Optional<Signataire_V2> signataireV2Optional = signataireRepository_V2.findByIdSigner(id_signer);
         if(idWorker == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("ID Application introuvable !");
         }
@@ -982,7 +1006,7 @@ public class SignerController {
 
     @PostMapping("signature2/{id_signer}")
     public ResponseEntity<?> signature_V2(@RequestParam(value="workerId",required = false) Integer idWorker,@RequestParam("filereceivefile") MultipartFile file,@RequestParam("codePin") String codePin,@PathVariable Integer id_signer) throws Exception {
-        Optional<Signataire_V2> signataireV2Optional = signataireRepository_V2.findById(id_signer);
+        Optional<Signataire_V2> signataireV2Optional = signataireRepository_V2.findByIdSigner(id_signer);
         if(idWorker == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("ID Application introuvable !");
         }
@@ -1168,7 +1192,7 @@ public class SignerController {
     @PostMapping("signature4/{id_signer}")
     public ResponseEntity<?> Signature_base22(@RequestParam(value="workerId",required = false) Integer idWorker, @RequestParam("filereceivefile") MultipartFile file, @RequestParam("codePin") String codePin, @PathVariable Integer id_signer) throws IOException {
 
-        Optional<Signataire_V2> signataireV2Optional = signataireRepository_V2.findById(id_signer);
+        Optional<Signataire_V2> signataireV2Optional = signataireRepository_V2.findByIdSigner(id_signer);
         if(idWorker == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("ID Application introuvable !");
         }
@@ -1324,7 +1348,7 @@ public class SignerController {
     /////////////////API DE RECHERHCE DE SIGNER PAR ID///////////////////////////////////////
     @GetMapping("findSignerById/{idSigner}")
     public Signataire_V2 trouverSignerParId(@PathVariable int idSigner){
-        Optional<Signataire_V2> signer = signataireRepository_V2.findById(idSigner);
+        Optional<Signataire_V2> signer = signataireRepository_V2.findByIdSigner(idSigner);
         if (signer.isPresent()){
            return  signer.get();
         }

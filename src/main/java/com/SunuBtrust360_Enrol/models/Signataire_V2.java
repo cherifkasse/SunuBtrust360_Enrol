@@ -22,8 +22,10 @@ import javax.validation.constraints.NotBlank;
 @Setter
 public class Signataire_V2 {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+   @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+
+    private Integer idSigner;
 
     @NotBlank(message = "Le champ 'nomSignataire' est obligatoire")
     private String nomSignataire;
