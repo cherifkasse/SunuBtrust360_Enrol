@@ -347,7 +347,14 @@ public class SignataireController {
 
             EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse.class);
             List<String> certificateListPem = new ArrayList<>();
+            List<String> certificateChain = enrollResponse.getCertificate_chain();
             certificateListPem.add(enrollResponse.getCertificate());
+            if(certificateChain.size() == 2){
+                // System.out.println("Import chaine");
+                certificateListPem.add(certificateChain.get(0));
+                certificateListPem.add(certificateChain.get(1));
+
+            }
             importChaine(certificateListPem, aliasCle);
 
             HttpStatus statusCode = (HttpStatus) response.getStatusCode();
@@ -1107,6 +1114,12 @@ public class SignataireController {
 
     }
 
+    //Récuperation de la liste de revocation
+    @GetMapping("getAllLogs")
+    public List<GestLogs> listAllLogs()  {
+        return gestLogsRepository.findAll();
+    }
+
     @PostMapping("getAllWorkers")
     @Operation(hidden = true)
     public List<Integer> getAllWorkers() throws MalformedURLException {
@@ -1416,6 +1429,12 @@ public class SignataireController {
 
             List<String> certificateListPem = new ArrayList<>();
             certificateListPem.add(enrollResponse.getCertificate());
+            if(certificateChain.size() == 2){
+                // System.out.println("Import chaine");
+                certificateListPem.add(certificateChain.get(0));
+                certificateListPem.add(certificateChain.get(1));
+
+            }
             importChaine(certificateListPem, alias2);
 
             HttpStatus statusCode = (HttpStatus) response.getStatusCode();

@@ -171,6 +171,7 @@ public class RevokeController {
             listeRevocation.setStatus("En cours...");
             listeRevocation.setAutreMotif(demandeRevocationRequest.getAutreMotif());
             listeRevocation.setNomEntreprise(demandeRevocationRequest.getNomEntreprise());
+            listeRevocation.setDateRevocation("-");
             listeRevocationRepository.save(listeRevocation);
             messageAjout = "Ajout demande de révocation terminée avec succès";
             logger.info(messageAjout);
