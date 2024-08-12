@@ -427,10 +427,16 @@ public class SignataireController {
     // @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public long pin_generation() throws NoSuchAlgorithmException {
         final int taille_pin = 6;
+        Random random = new Random();
         SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
         final StringBuilder pin = new StringBuilder(taille_pin);
         for (int i = 0; i < taille_pin; i++) {
             pin.append(secureRandom.nextInt(10));
+        }
+        if(pin.charAt(0) == '0' ) {
+            int chiffre = random.nextInt(9) + 1;
+            // Remplacer le premier caractère par le chiffre généré
+            pin.setCharAt(0, (char) (chiffre + '0'));
         }
         return Long.parseLong(pin.toString());
     }
