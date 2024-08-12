@@ -1,7 +1,7 @@
 spring:
   datasource:
     driver-class-name: org.sqlite.JDBC
-    url: jdbc:sqlite:C:/Users/mdiankha/Desktop/EnrolDBv0.0.2
+    url: jdbc:sqlite:D:/PKI/BD/EnrolDBv0.0.2
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
