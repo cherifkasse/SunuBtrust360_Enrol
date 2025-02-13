@@ -6,6 +6,7 @@ import com.SunuBtrust360_Enrol.models.*;
 import com.SunuBtrust360_Enrol.repository.*;
 import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest_V2;
 import com.SunuBtrust360_Enrol.payload.request.SignataireRequest_V2;
+import com.SunuBtrust360_Enrol.services.CertService;
 import com.SunuBtrust360_Enrol.utils.GestSignataire;
 import com.SunuBtrust360_Enrol.wsdl.*;
 import com.SunuBtrust360_Enrol.wsdl_client.*;
@@ -97,6 +98,9 @@ public class SignerController {
     private PieceIdentiteRepository pieceIdentiteRepository;
 
     @Autowired
+    private InfosCertificatRepository infosCertificatRepository;
+
+    @Autowired
     private WorkerRepository workerRepository;
 
     @Autowired
@@ -105,13 +109,22 @@ public class SignerController {
     @Autowired
     private IdLastSigantaireRepository idLastSigantaireRepository;
 
-    public SignerController(SignataireRepository_V2 signataireRepository, SignataireRepository signataireRepository1, WorkerRepository workerRepository, OperationRepository operationRepository, IdLastSigantaireRepository idLastSigantaireRepository) {
+    @Autowired
+    private SignerStartupRepository signerStartupRepository;
+
+    @Autowired
+    private SignDocumentRepository signDocumentRepository;
+
+    @Autowired
+    private CertService certService;
+
+    public SignerController(SignataireRepository_V2 signataireRepository, SignataireRepository signataireRepository1, WorkerRepository workerRepository, OperationRepository operationRepository, IdLastSigantaireRepository idLastSigantaireRepository,InfosCertificatRepository infosCertificatRepository) {
         this.signataireRepository_V2 = signataireRepository;
         this.signataireRepository = signataireRepository1;
         this.workerRepository = workerRepository;
         this.operationRepository = operationRepository;
         this.idLastSigantaireRepository = idLastSigantaireRepository;
-        this.
+        this.infosCertificatRepository = infosCertificatRepository;
         log = LogManager.getLogger(SignerController.class);
         log.debug("Registration class constructor");
         try (InputStream input = SignerController.class.getClassLoader().getResourceAsStream("configWin.properties")) {
@@ -167,8 +180,11 @@ public class SignerController {
         if (bindingResult.hasErrors()) {
             return new ResponseEntity<>(bindingResult.getAllErrors(), HttpStatus.BAD_REQUEST);
         }
-
-        String cle_de_signature2 = prop.getProperty("aliasCle") + decouper_nom(signataireRequest.getNomSignataire().trim().toUpperCase()) + idAppAajouter+ "_" + signataireRequest.getCni();
+        String messageRetourDecouper = decouper_nom(signataireRequest.getNomSignataire().trim().toUpperCase()) + idAppAajouter+ "_" + signataireRequest.getCni();
+        if (messageRetourDecouper.equals("Tableau vide!")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur: Informations absentes.");
+        }
+        String cle_de_signature2 = prop.getProperty("aliasCle") + messageRetourDecouper;
 
         if (cle_de_signature2.length() > 50){
             cle_de_signature2 = cle_de_signature2.substring(0, 50);
@@ -206,8 +222,9 @@ public class SignerController {
                 return ResponseEntity.badRequest().body(badRequestMessage);
             }
 
-            if (!signataireRepository_V2.findSignataireByCni(signataireRequest.getCni()).isEmpty()) {
-                String conflictMessage = "Person already exists!";
+            if (!signataireRepository_V2.findSignataireByCni(signataireRequest.getCni()).isEmpty()
+            && !trouverSignerParNomSigner(signataireRequest.getNomSignataire()+signataireRequest.getCni()).isEmpty()) {
+                String conflictMessage = "Person already exists2!";
                 logger.info(conflictMessage);
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(conflictMessage);
             }
@@ -218,8 +235,8 @@ public class SignerController {
             signataire.setCodePin(encrypterPin(pin.toString()));
             String signKey = generateCryptoToken(alias);
             System.out.println("SIGNNNNN: "+signKey);
-            if (signKey.length() > 30){
-                signKey = signKey.substring(0, 30);
+            if (signKey.length() > 70){
+                signKey = signKey.substring(0, 70);
             }
             signataire.setSignerKey(signKey);
             signataire.setCni(signataireRequest.getCni());
@@ -359,8 +376,8 @@ public class SignerController {
             deleteKeySigner(id_app, alias);
             String signKey = generateCryptoToken(alias);
             System.out.println("SIGNNNNN: "+signKey);
-            if (signKey.length() > 30){
-                signKey = signKey.substring(0, 30);
+            if (signKey.length() > 70){
+                signKey = signKey.substring(0, 70);
             }
             signataire.setSignerKey(signKey);
             signataire.setCni(signataireRequest.getCni());
@@ -581,8 +598,8 @@ public class SignerController {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         LocalDateTime initialDate = LocalDateTime.parse(dateString, formatter);
 
-        // Ajoutez 2 jours à la date initiale
-        LocalDateTime resultDate = initialDate.plusDays(2);
+        // Ajoutez une semaine à la date initiale
+        LocalDateTime resultDate = initialDate.plusWeeks(Long.parseLong(prop.getProperty("expiration_certificat")));
 
         // Formatez la date résultante pour l'affichage
         return resultDate.format(formatter);
@@ -740,10 +757,16 @@ public class SignerController {
     @PostMapping("generer_pin")
     public long pin_generation() throws NoSuchAlgorithmException {
         final int taille_pin = 6;
+        Random random = new Random();
         SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
         final StringBuilder pin = new StringBuilder(taille_pin);
         for (int i = 0; i < taille_pin; i++) {
-            pin.append(secureRandom.nextInt(9));
+            pin.append(secureRandom.nextInt(10));
+        }
+        if(pin.charAt(0) == '0' ) {
+            int chiffre = random.nextInt(9) + 1;
+            // Remplacer le premier caractère par le chiffre généré
+            pin.setCharAt(0, (char) (chiffre + '0'));
         }
         return Long.parseLong(pin.toString());
     }
@@ -794,6 +817,7 @@ public class SignerController {
                 ? keyPassword.toCharArray()
                 : null;
         KeyManagerFactory fac = KeyManagerFactory.getInstance(alg);
+        fac.init(keyStore, keyPass);
         fac.init(keyStore, keyPass);
         return fac.getKeyManagers();
     }
@@ -1364,10 +1388,22 @@ public class SignerController {
         return null;
     }
 
+    @PostMapping("enregistrerInfosCertif")
+    public ResponseEntity<String> enregistrerInfosCertif(@RequestBody  InfosCertificat infosCertificat){
+        infosCertificatRepository.save(infosCertificat);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("getInfosEnrolement")
+    public List<InfosCertificat> getInfosEnrolement(){
+        return infosCertificatRepository.findAll();
+    }
+
+
     @GetMapping("findSignerByCni/{cniSigner}")
     public List<Signataire_V2> trouverSignerParCNI(@PathVariable String cniSigner){
-        List<Signataire_V2> signerList = signataireRepository_V2.findSignataireByCni(cniSigner);
-        return signerList;
+        System.out.println("CNI reçu : " + cniSigner);
+        return signataireRepository_V2.findSignataireByCni(cniSigner);
     }
 
     @GetMapping("findNomWorkerById/{id_worker}")
@@ -1398,6 +1434,13 @@ public class SignerController {
         return signerList;
     }
 
+    @GetMapping("getAllOperations")
+    public List<OperationSignature> getAllOperations(){
+        List<OperationSignature> signerList = operationRepository.findAll();
+        return signerList;
+    }
+
+
 
     @GetMapping("findSignerByIdApp/{idApp}")
     public boolean trouverSignerParIdApp(@PathVariable Integer idApp){
@@ -1415,18 +1458,35 @@ public class SignerController {
         return workerRepository.existsByIdWorker(idWorker);
     }
 
-    public String decouper_nom(String nomAChanger){
-        if(nomAChanger.contains(" ")){
+    public String decouper_nom(String nomAChanger) {
+        //System.out.println("1er caractere : "+nomAChanger.charAt(0));
+        if (nomAChanger.contains(" ")) {
             String[] caract = nomAChanger.split(" ");
-            nomAChanger = caract[0]+ "_";
-            for(int i = 1; i < caract.length ; i++){
-                nomAChanger += caract[i].charAt(0) ;
+            logger.info("Caracteres du tableau :"+caract.toString());
+            if (caract.length < 1) {
+                return "Tableau vide!";
             }
-        }
-        if (nomAChanger.length() > 30){
-            nomAChanger = nomAChanger.substring(0,30);
-        }
+            if (caract[0].trim().isEmpty()) {
+                return "Tableau vide!";
+            }
+            nomAChanger = caract[0] + "_";
+            logger.info("caract de 0 :"+caract[0]);
+            logger.info("Taille du tableau :"+caract.length);
+            if (caract.length > 1) {
+                for (int i = 1; i < caract.length; i++) {
+                    logger.info("Dans la boucle FOR");
+                    if (!caract[i].trim().isEmpty()) {
+                        logger.info("caract de "+i+" :"+caract[i]);
+                        nomAChanger += caract[i].charAt(0);
+                    }
+                }
+            }
 
+        }
+        if (nomAChanger.length() > 70) {
+            nomAChanger = nomAChanger.substring(0, 70);
+        }
+        logger.info("Nom caractere :"+nomAChanger);
         return nomAChanger;
     }
 
@@ -1490,5 +1550,164 @@ public class SignerController {
 
     }
 
+    //Changer les attributs d'un Worker
+    @PostMapping("setWorkerAttributes/{workerId}")
+    public void setWorkerAttributes(@PathVariable int workerId, @RequestParam("image") String base64Image) throws MalformedURLException {
+        System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
+        System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
+        System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
+        System.setProperty("javax.net.ssl.trustStorePassword", prop.getProperty("password_keystore"));
+        URL wsdlLocation = new URL(prop.getProperty("wsdlUrl") );
+        AdminWSService service = new AdminWSService(wsdlLocation);
+        port = service.getPort(AdminWS.class);
+        try {
+            connectionSetup(port);
+        } catch (IOException | GeneralSecurityException e1) {
+            e1.printStackTrace();
+        }
+        try {
+            List<String> nomWorker = new ArrayList<>();
+            //port.setWorkerProperty(workerId,"ADD_VISIBLE_SIGNATURE","True");
+            port.setWorkerProperty(workerId,"VISIBLE_SIGNATURE_CUSTOM_IMAGE_BASE64",base64Image);
+           // port.setWorkerProperty(workerId,"VISIBLE_SIGNATURE_RECTANGLE","10,12,17,18");
+           // port.setWorkerProperty(workerId,"VISIBLE_SIGNATURE_PAGE",numeroPage+"");
+
+        } catch (AdminNotAuthorizedException_Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    //Changer les attributs d'un Worker
+    @PostMapping("setWorkerAttributesCoord/{workerId}/{x1}/{y1}/{x2}/{y2}")
+    public void setWorkerAttributesCoord(@PathVariable int workerId,@PathVariable String x1, @PathVariable String y1, @PathVariable String x2, @PathVariable String y2) throws MalformedURLException {
+        System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
+        System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
+        System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
+        System.setProperty("javax.net.ssl.trustStorePassword", prop.getProperty("password_keystore"));
+        URL wsdlLocation = new URL(prop.getProperty("wsdlUrl") );
+        AdminWSService service = new AdminWSService(wsdlLocation);
+        port = service.getPort(AdminWS.class);
+        try {
+            connectionSetup(port);
+        } catch (IOException | GeneralSecurityException e1) {
+            e1.printStackTrace();
+        }
+        try {
+            List<String> nomWorker = new ArrayList<>();
+            //port.setWorkerProperty(workerId,"ADD_VISIBLE_SIGNATURE","True");
+            //port.setWorkerProperty(workerId,"VISIBLE_SIGNATURE_CUSTOM_IMAGE_BASE64",base64Image);
+            port.setWorkerProperty(workerId,"VISIBLE_SIGNATURE_RECTANGLE",x1+","+y1+","+x2+","+y2);
+            // port.setWorkerProperty(workerId,"VISIBLE_SIGNATURE_PAGE",numeroPage+"");
+
+        } catch (AdminNotAuthorizedException_Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    @PostMapping("setWorkerAttributesPage/{workerId}/{numeroPage}")
+    public void setWorkerAttributesPage(@PathVariable Integer workerId,@PathVariable String numeroPage) throws MalformedURLException {
+        System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
+        System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
+        System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
+        System.setProperty("javax.net.ssl.trustStorePassword", prop.getProperty("password_keystore"));
+        URL wsdlLocation = new URL(prop.getProperty("wsdlUrl") );
+        AdminWSService service = new AdminWSService(wsdlLocation);
+        port = service.getPort(AdminWS.class);
+        try {
+            connectionSetup(port);
+        } catch (IOException | GeneralSecurityException e1) {
+            e1.printStackTrace();
+        }
+        try {
+            List<String> nomWorker = new ArrayList<>();
+            //port.setWorkerProperty(workerId,"ADD_VISIBLE_SIGNATURE","True");
+            // port.setWorkerProperty(workerId,"VISIBLE_SIGNATURE_RECTANGLE","10,12,17,18");
+            port.setWorkerProperty(workerId,"VISIBLE_SIGNATURE_PAGE",numeroPage);
+
+        } catch (AdminNotAuthorizedException_Exception e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    @PostMapping("reloadWorker/{workerId}")
+    public void reloadWorker(@PathVariable Integer workerId) throws MalformedURLException {
+        System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
+        System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
+        System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
+        System.setProperty("javax.net.ssl.trustStorePassword", prop.getProperty("password_keystore"));
+        URL wsdlLocation = new URL(prop.getProperty("wsdlUrl") );
+        AdminWSService service = new AdminWSService(wsdlLocation);
+        port = service.getPort(AdminWS.class);
+        try {
+            connectionSetup(port);
+        } catch (IOException | GeneralSecurityException e1) {
+            e1.printStackTrace();
+        }
+        try {
+
+            port.reloadConfiguration(workerId);
+
+        } catch (AdminNotAuthorizedException_Exception e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    @GetMapping("findSignerStartup/{idWorker}")
+    public ResponseEntity<SignerStartup> findSignerStartup(@PathVariable Integer idWorker){
+        SignerStartup signerStartup = signerStartupRepository.findSignerStartupByIdWorker(idWorker);
+        return ResponseEntity.ok(signerStartup);
+    }
+
+    @GetMapping("findSignDocument/{codeASCIIString}")
+    public ResponseEntity<SignDocument> findSignerStartup(@PathVariable String codeASCIIString){
+        SignDocument signDocument = signDocumentRepository.findByCodeASCIIString(codeASCIIString);
+        return ResponseEntity.ok(signDocument);
+    }
+
+    @PostMapping("creerSignerStartup")
+    public ResponseEntity<String> creerSignerStartup(@Valid @RequestBody SignerStartup signerStartup) {
+        try {
+            logger.info("Création de signerStartup avec ID Worker: {}", signerStartup.getIdWorker());
+
+            Worker worker = workerRepository.findWorkersByIdWorker(signerStartup.getIdWorker());
+            if(worker == null){
+                logger.warn("ID worker non trouvé: {}", signerStartup.getIdWorker());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("ID worker non trouvé !");
+            }
+
+            SignerStartup signerStartupR = signerStartupRepository.findSignerStartupByIdWorker(signerStartup.getIdWorker());
+            if (signerStartupR != null){
+                logger.warn("Worker déjà enregistré avec ID: {}", signerStartup.getIdWorker());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Worker déjà enregistré !");
+            }
+
+            long codePin = pin_generation();
+            SignerStartup signerStartup1 = new SignerStartup();
+            signerStartup1.setIdWorker(signerStartup.getIdWorker());
+            signerStartup1.setCodePin(encrypterPin(String.valueOf(codePin)));
+            signerStartupRepository.save(signerStartup1);
+
+            logger.info("Code Pin généré et enregistré pour ID Worker: {}", signerStartup.getIdWorker());
+            return ResponseEntity.ok("Code Pin :" + codePin);
+
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("Erreur de génération de Code Pin", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erreur lors de la génération du Code Pin: "+e);
+        } catch (Exception e) {
+            logger.error("Erreur lors de la création de signerStartup", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erreur lors de la création: "+e);
+        }
+    }
+
+    @GetMapping("checkUid")
+    public boolean checkUidExists(@RequestParam String tableName, @RequestParam String uid) {
+        return certService.existsByUid(tableName, uid);
+    }
 
 }

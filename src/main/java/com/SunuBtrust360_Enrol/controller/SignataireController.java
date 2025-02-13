@@ -1,18 +1,12 @@
 package com.SunuBtrust360_Enrol.controller;
 
 import com.SunuBtrust360_Enrol.config.CustomHttpRequestFactory;
-import com.SunuBtrust360_Enrol.models.GestLogs;
-import com.SunuBtrust360_Enrol.models.Signataire;
+import com.SunuBtrust360_Enrol.models.*;
 
-import com.SunuBtrust360_Enrol.models.User;
-import com.SunuBtrust360_Enrol.models.Worker;
 import com.SunuBtrust360_Enrol.payload.request.ObtenirCertRequest;
 import com.SunuBtrust360_Enrol.payload.request.RevokeRequest;
 import com.SunuBtrust360_Enrol.payload.request.SignataireRequest;
-import com.SunuBtrust360_Enrol.repository.GestLogsRepository;
-import com.SunuBtrust360_Enrol.repository.UserRepository;
-import com.SunuBtrust360_Enrol.repository.WorkerRepository;
-import com.SunuBtrust360_Enrol.repository.SignataireRepository;
+import com.SunuBtrust360_Enrol.repository.*;
 
 import com.SunuBtrust360_Enrol.utils.GestSignataire;
 import com.SunuBtrust360_Enrol.wsdl.*;
@@ -111,6 +105,10 @@ public class SignataireController {
     private final SignataireRepository signataireRepository;
     @Autowired
     private final UserRepository userRepository;
+
+    @Autowired
+    private final InfosCertificatRepository infosCertificatRepository;
+
     @Autowired
     private final WorkerRepository workerRepository;
     @Autowired
@@ -135,10 +133,11 @@ public class SignataireController {
     private String jwtSecret;
 
 
-    public SignataireController(SignataireRepository signataireRepository, WorkerRepository workerRepository, UserRepository userRepository, GestLogsRepository gestLogsRepository) {
+    public SignataireController(SignataireRepository signataireRepository, WorkerRepository workerRepository, UserRepository userRepository, InfosCertificatRepository infosCertificatRepository, GestLogsRepository gestLogsRepository) {
         this.signataireRepository = signataireRepository;
         this.workerRepository = workerRepository;
         this.userRepository = userRepository;
+        this.infosCertificatRepository = infosCertificatRepository;
         this.gestLogsRepository = gestLogsRepository;
         log = LogManager.getLogger(SignataireController.class);
         log.debug("Registration class constructor");
@@ -255,8 +254,8 @@ public class SignataireController {
         //////////////////////////////////////////////////////////////////////
         //////////////Infos pour obtenir certificat////////////////////////////
         obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-        obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-        obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+        obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name_CE"));
+        obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name_CE"));
         obtenirCertRequest.setUsername(username);
         obtenirCertRequest.setPassword(signataireRequest.getPassword());
         //obtenirCertRequest.setCertificate_request(prop.getProperty("csr"));
@@ -271,10 +270,20 @@ public class SignataireController {
         HttpStatus statusCode = (HttpStatus) response.getStatusCode();
         int statusCodeValue = statusCode.value();
         if (statusCodeValue == 201) {
+            InfosCertificat infosCertificat = new InfosCertificat();
             Date date_creation = new Date();
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             signataire.setDateCreation(sdf.format(date_creation));
             signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+            ///Infos certificates
+            infosCertificat.setSignerKey(cle_de_signature);
+            infosCertificat.setNomWorker(signataireRequest.getTrustedApp());
+            infosCertificat.setDateCreation(sdf.format(date_creation));
+            infosCertificat.setDateExpiration(signataire.getDate_expiration());
+            infosCertificatRepository.save(infosCertificat);
+
+
+            ///Infos certificats
             signataireRepository.save(signataire);
         }
 
@@ -329,8 +338,8 @@ public class SignataireController {
 
             ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name_CE"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name_CE"));
             obtenirCertRequest.setUsername(username);
             obtenirCertRequest.setInclude_chain(true);
             obtenirCertRequest.setPassword(signataireRequest.getPassword());
@@ -361,10 +370,20 @@ public class SignataireController {
             int statusCodeValue = statusCode.value();
 
             if (statusCodeValue == 201) {
+                InfosCertificat infosCertificat = new InfosCertificat();
                 Date date_creation = new Date();
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 signataire.setDateCreation(sdf.format(date_creation));
                 signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                ///Infos certificates
+                infosCertificat.setSignerKey(cle_de_signature);
+                infosCertificat.setNomWorker(signataireRequest.getTrustedApp());
+                infosCertificat.setDateCreation(sdf.format(date_creation));
+                infosCertificat.setDateExpiration(signataire.getDate_expiration());
+                infosCertificatRepository.save(infosCertificat);
+
+
+                ///Infos certificats
                 gst.updateRenouveler(signataire.getCleDeSignature(), signataire.getCode_pin(), sdf.format(date_creation), calculerDateExpiration2(sdf.format(date_creation)));
                 logger.info("Renouvellement réussi avec succès : " + response.getBody());
                 gestLogs(httpServletRequest, action, "Renouvellement réussi");
@@ -417,6 +436,7 @@ public class SignataireController {
             long differenceInSeconds = ChronoUnit.SECONDS.between(dateTime1, dateTime2);
             joursRestants = "Le certificat expire dans" + differenceInDays + " jours";
         }
+        int o = 0;
         return joursRestants;
     }
 
@@ -1126,6 +1146,12 @@ public class SignataireController {
         return gestLogsRepository.findAll();
     }
 
+    //Recuperation de la liste des infos sur le certificat
+    @GetMapping("getAllInfosCertificat")
+    public List<InfosCertificat> listInfosCertificat()  {
+        return infosCertificatRepository.findAll();
+    }
+
     @PostMapping("getAllWorkers")
     @Operation(hidden = true)
     public List<Integer> getAllWorkers() throws MalformedURLException {
@@ -1415,8 +1441,8 @@ public class SignataireController {
             signataire.setCniPassport(signataireRequest.getCniPassport());
 
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name_CE"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name_CE"));
             obtenirCertRequest.setInclude_chain(true);
             obtenirCertRequest.setUsername(username);
             obtenirCertRequest.setPassword(signataireRequest.getPassword());
@@ -1447,9 +1473,19 @@ public class SignataireController {
             int statusCodeValue = statusCode.value();
 
             if (statusCodeValue == 201) {
+                InfosCertificat infosCertificat = new InfosCertificat();
                 Date date_creation = new Date();
                 signataire.setDateCreation(sdf.format(date_creation));
                 signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                ///Infos certificates
+                infosCertificat.setSignerKey(cle_de_signature);
+                infosCertificat.setNomWorker(signataireRequest.getTrustedApp());
+                infosCertificat.setDateCreation(sdf.format(date_creation));
+                infosCertificat.setDateExpiration(signataire.getDate_expiration());
+                infosCertificatRepository.save(infosCertificat);
+
+
+                ///Infos certificats
                 signataireRepository.save(signataire);
                 logger.info("Enrollment avec succès: " + response.getBody());
                 gestLogs(httpServletRequest, action, "Enrôlement réussi");
@@ -1548,8 +1584,8 @@ public class SignataireController {
             //////////////////////////////////////////////////////////////////////
             //////////////Infos pour obtenir certificat////////////////////////////
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name_CE"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name_CE"));
             obtenirCertRequest.setInclude_chain(true);
             obtenirCertRequest.setUsername(username);
             obtenirCertRequest.setPassword(signataireRequest.getPassword());
