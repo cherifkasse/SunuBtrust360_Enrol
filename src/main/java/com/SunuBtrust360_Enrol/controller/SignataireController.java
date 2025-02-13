@@ -592,7 +592,7 @@ public class SignataireController {
                 gestLogs(httpServletRequest, action, successMessage);
                 return ResponseEntity.ok().body(successMessage);
             } else {
-                String badRequestMessage = "Vérifier les informations du signataire que vous essayez de supprimer";
+                String badRequestMessage = "Echec: Vérifier les informations du signataire que vous essayez de supprimer";
                 logger.warn(badRequestMessage);
                 gestLogs(httpServletRequest, action, badRequestMessage);
                 return ResponseEntity.badRequest().body(badRequestMessage);
