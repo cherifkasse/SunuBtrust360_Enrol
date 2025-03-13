@@ -32,6 +32,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -43,10 +44,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.validation.Valid;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
@@ -56,6 +54,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.*;
 import java.security.KeyStoreException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -276,7 +276,15 @@ public class SignerController {
                 Date date_creation = new Date();
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 signataire.setDateCreation(sdf.format(date_creation));
-                signataire.setDateExpiration(calculerDateExpirationJours(sdf.format(date_creation)));
+                String siExpiration7Jours = prop.getProperty("expiration_certificat");
+                if (siExpiration7Jours ==  "1"){
+                    signataire.setDateExpiration(calculerDateExpirationJours(sdf.format(date_creation)));
+                }
+                else{
+                    X509Certificate certif = convertStringToX509(enrollResponse.getCertificate());
+                    System.out.println("Total expiration :"+certif.getNotAfter());
+                    signataire.setDateExpiration(sdf.format(certif.getNotAfter()));
+                }
                 Signataire_V2 lastSigner = signataireRepository_V2.findLast();
                 List<IdLastSignataire> listeIdLastSignataire = idLastSigantaireRepository.findAll();
                 IdLastSignataire idLastSignataire = new IdLastSignataire();
@@ -302,7 +310,15 @@ public class SignerController {
                 return new ResponseEntity<>(response.getBody(), response.getStatusCode());
             }
 
-        } catch (HttpStatusCodeException e) {
+        }catch (HttpServerErrorException e) {
+            String errorMessage = "Opération échouée! Veuillez réessayer.";
+            if(isExistSignerKey(alias)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+            }
+            logger.error(errorMessage);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
+        }
+        catch (HttpStatusCodeException e) {
             String errorMessage = "Erreur HTTP survenue: " + e.getResponseBodyAsString();
             logger.error(errorMessage, e);
             return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
@@ -1708,6 +1724,16 @@ public class SignerController {
     @GetMapping("checkUid")
     public boolean checkUidExists(@RequestParam String tableName, @RequestParam String uid) {
         return certService.existsByUid(tableName, uid);
+    }
+
+    public static X509Certificate convertStringToX509(String pemCert) throws Exception {
+
+        // Décoder la chaîne Base64 en tableau de bytes
+        byte[] certBytes = Base64.getDecoder().decode(pemCert);
+
+        // Convertir en certificat X.509
+        CertificateFactory factory = CertificateFactory.getInstance("X.509");
+        return (X509Certificate) factory.generateCertificate(new ByteArrayInputStream(certBytes));
     }
 
 }

@@ -53,6 +53,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.ws.client.core.WebServiceTemplate;
@@ -1057,7 +1058,8 @@ public class SignataireController {
         return resultat;
     }
 
-    public boolean deleteSignerKey(String alias) throws MalformedURLException {
+    @DeleteMapping("removeSignerKey/{alias}")
+    public boolean deleteSignerKey(@PathVariable String alias) throws MalformedURLException {
         System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
         System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
         System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
@@ -1453,7 +1455,7 @@ public class SignataireController {
             obtenirCertRequest.setCertificate_request(webServiceConnect(subjectDN, signKey));
 
             HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+            ResponseEntity<String> response =  restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
 
             EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse.class);
             List<String> certificateChain = enrollResponse.getCertificate_chain();
@@ -1496,11 +1498,20 @@ public class SignataireController {
 
             return response;
 
-        } catch (HttpStatusCodeException e) {
+        }catch (HttpServerErrorException e) {
+            String errorMessage = "Opération échouée! Veuillez réessayer.";
+            if(isExistSignerKey(alias2)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias2);
+            }
+            logger.error(errorMessage);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
+        }
+        catch (HttpStatusCodeException e) {
             String errorMessage = "Une erreur HTTP est survenue: " + e.getResponseBodyAsString();
             logger.error(errorMessage, e);
             return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             String generalErrorMessage = "Une erreur inattendue est survenue: " + e.getMessage();
             logger.error(generalErrorMessage, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
@@ -1517,7 +1528,7 @@ public class SignataireController {
     /////////////////////////////////REMOVE KEY////////////////////////////////////////////////////
     @PostMapping("deleteSigner/{idWorker}/{alias}")
     public boolean deleteKeySigner(@PathVariable int idWorker, @PathVariable String alias) throws MalformedURLException{
-        boolean  result=false;
+        boolean result=false;
         System.setProperty("javax.net.ssl.keyStore", prop.getProperty("keystore"));
         System.setProperty("javax.net.ssl.keyStorePassword", prop.getProperty("password_keystore"));
         System.setProperty("javax.net.ssl.trustStore", prop.getProperty("trustore1"));
@@ -1636,7 +1647,7 @@ public class SignataireController {
 
     public String decouper_nom(String nomAChanger){
         if(nomAChanger.contains(" ")){
-            String[] caract = nomAChanger.split(" ");
+            String[] caract = nomAChanger.split("\\s+");
             nomAChanger = caract[0]+ "_";
             for(int i = 1; i < caract.length ; i++){
                 nomAChanger += caract[i].charAt(0) ;
