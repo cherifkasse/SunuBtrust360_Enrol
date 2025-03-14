@@ -20,7 +20,6 @@ public class OperationSignature {
     private Integer id;
 
     private Integer idSigner;
-    private Integer idCoSigner;
     private String codePin;
 
     private String signerKey;

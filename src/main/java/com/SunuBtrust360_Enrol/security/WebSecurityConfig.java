@@ -71,9 +71,7 @@ public class WebSecurityConfig {
                                 .requestMatchers(mvcMatcherBuilder.pattern("/v0.0.2/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/v0.0.2/revoke/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/test/**")).permitAll()
-
-                                .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui.html")).permitAll()
-                                // Autoriser l'accès à Swagger UI
+                                .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui.html")).permitAll() // Autoriser l'accès à Swagger UI
                                 .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/v3/api-docs")).permitAll() // Autoriser l'accès à la documentation Swagger JSON
                                 .requestMatchers(mvcMatcherBuilder.pattern("/webjars/**")).permitAll() // Autoriser l'accès aux ressources WebJars de Swagger
