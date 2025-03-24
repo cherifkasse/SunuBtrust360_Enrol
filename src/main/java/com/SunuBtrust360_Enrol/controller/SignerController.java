@@ -282,7 +282,7 @@ public class SignerController {
                 }
                 else{
                     X509Certificate certif = convertStringToX509(enrollResponse.getCertificate());
-                    System.out.println("Total expiration :"+certif.getNotAfter());
+                    //System.out.println("Total expiration :"+certif.getNotAfter());
                     signataire.setDateExpiration(sdf.format(certif.getNotAfter()));
                 }
                 Signataire_V2 lastSigner = signataireRepository_V2.findLast();
@@ -319,13 +319,21 @@ public class SignerController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
         }
         catch (HttpStatusCodeException e) {
+            String errorMessage2 = "Erreur HTTP survenue: \nOpération échouée! Veuillez réessayer.";
             String errorMessage = "Erreur HTTP survenue: " + e.getResponseBodyAsString();
+            if(isExistSignerKey(alias)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+            }
             logger.error(errorMessage, e);
-            return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
+            return ResponseEntity.status(e.getStatusCode()).body(errorMessage2);
         } catch (Exception e) {
+            String errorMessage2 = "Erreur HTTP survenue: \nOpération échouée! Veuillez réessayer.";
             String generalErrorMessage = "Une erreur inattendue est apparue: " + e.getMessage();
+            if(isExistSignerKey(alias)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+            }
             logger.error(generalErrorMessage, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorMessage2);
         }
     }
     @PostMapping("renew")
