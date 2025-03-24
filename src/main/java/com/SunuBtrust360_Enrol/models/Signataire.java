@@ -1,7 +1,6 @@
 package com.SunuBtrust360_Enrol.models;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -52,7 +51,7 @@ public class Signataire {
     @NotBlank(message = "Veuillez renseigner le cni ou le passport!")
     private String cniPassport;
 
-    @Column(nullable = true)
+
     private boolean isDisabled;
 
     public boolean isDisabled() {

@@ -31,7 +31,6 @@ public class Signataire_V2 {
     private String nomSignataire;
 
     @NotBlank(message = "Le champ 'cni' est obligatoire")
-    @Column(name = "cni", nullable = false, unique = true)
     private String cni;
 
     private String codePin;
