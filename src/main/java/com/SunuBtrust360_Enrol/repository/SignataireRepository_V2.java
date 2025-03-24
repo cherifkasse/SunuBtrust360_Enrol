@@ -2,13 +2,14 @@ package com.SunuBtrust360_Enrol.repository;
 
 
 
+import com.SunuBtrust360_Enrol.models.Signataire;
 import com.SunuBtrust360_Enrol.models.Signataire_V2;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,7 +18,6 @@ import java.util.Optional;
  * @project SunuBtrust360_Enrol
  * @created 13/02/2024/02/2024 - 16:03
  */
-@Repository
 public interface SignataireRepository_V2 extends JpaRepository<Signataire_V2, Integer> {
     @Query("SELECT s.id, s.dateCreation, s.nomWorker FROM Signataire_V2 s WHERE s.dateCreation BETWEEN :date1 AND :date2 AND s.nomWorker = :workerName")
     List<Object[]> findSignatairesByDateRangeAndWorkerName(
@@ -29,7 +29,6 @@ public interface SignataireRepository_V2 extends JpaRepository<Signataire_V2, In
     default Signataire_V2 findLast() {
         return findAll(Sort.by(Sort.Direction.DESC, "id")).stream().findFirst().orElse(null);
     }
-   // @Query("SELECT s FROM Signataire_V2 s WHERE s.cni = :cni")
     List<Signataire_V2> findSignataireByCni(String cni);
     List<Signataire_V2> findByNomSignataire(String nom);
 
