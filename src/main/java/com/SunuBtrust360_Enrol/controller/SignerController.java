@@ -254,8 +254,33 @@ public class SignerController {
             obtenirCertRequest.setCertificate_request(Connect_WS2(subjectDN, signKey));
 
             HttpEntity<ObtenirCertRequest_V2> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+            ResponseEntity<String> response = null;
+            try{
+                response  = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+            }catch (Exception e){
+                String errorMessage = "An error has occcured. Veuillez réessayer.";
+                if(isExistSignerKey(alias)){
+                    logger.info("Suppression de la clé existante pour l'alias : {}", alias);
+                    deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+                    System.out.println("Suppression de la clé existante pour l'alias :" +alias);
+                }
+                System.out.println(errorMessage);
+                logger.error(errorMessage);
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
+            }
 
+
+
+
+//            if(response.getBody() == null || response.getBody().isBlank()){
+//                String errorMessage = "Opération échouée! Veuillez réessayer.";
+//                if(isExistSignerKey(alias)){
+//                    logger.info("Suppression de la clé existante pour l'alias : {}", alias);
+//                    deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+//                }
+//                logger.error(errorMessage);
+//                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
+//            }
             EnrollResponse_V2 enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse_V2.class);
             enrollResponse.setCodePin(pin.toString());
             List<String> certificateChain = enrollResponse.getCertificate_chain();
@@ -1536,6 +1561,7 @@ public class SignerController {
             String keySpec = "2048";
             String authCode = prop.getProperty("authCodeSignKey");
             result = port.testKey(signerId,alias,authCode);
+
             if(result.get(0).isSuccess()){
                 resultat = true;
             }
@@ -1543,7 +1569,8 @@ public class SignerController {
             // System.out.println("Résultat de l'opération : " + result);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return resultat;
     }
