@@ -59,6 +59,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.ws.client.core.WebServiceTemplate;
@@ -343,7 +344,20 @@ public class SignataireController {
 
             HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
             RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
-            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+            ResponseEntity<String> response = null;
+            try{
+                response  = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+            }catch (Exception e){
+                String errorMessage = "An error has occcured. Veuillez réessayer.";
+                if(isExistSignerKey(aliasCle)){
+                    logger.info("Suppression de la clé existante pour l'alias : {}", aliasCle);
+                    deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),aliasCle);
+                    System.out.println("Suppression de la clé existante pour l'alias :" +aliasCle);
+                }
+                System.out.println(errorMessage);
+                logger.error(errorMessage);
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
+            }
 
             EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse.class);
             List<String> certificateListPem = new ArrayList<>();
@@ -375,16 +389,30 @@ public class SignataireController {
 
             return response;
 
-        } catch (HttpStatusCodeException e) {
-            String errorMessage = "Une erreur HTTP est survenue: " + e.getResponseBodyAsString();
+        }catch (HttpServerErrorException e) {
+            String errorMessage = "Opération échouée! Veuillez réessayer.";
+            if(isExistSignerKey(aliasCle)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),aliasCle);
+            }
+            logger.error(errorMessage);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
+        }
+        catch (HttpStatusCodeException e) {
+            String errorMessage2 = "Erreur HTTP survenue: \nOpération échouée! Veuillez réessayer.";
+            String errorMessage = "Erreur HTTP survenue: " + e.getResponseBodyAsString();
+            if(isExistSignerKey(aliasCle)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),aliasCle);
+            }
             logger.error(errorMessage, e);
-            gestLogs(httpServletRequest, action, "Echec : "+errorMessage);
-            return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
+            return ResponseEntity.status(e.getStatusCode()).body(errorMessage2);
         } catch (Exception e) {
-            String generalErrorMessage = "Une erreur inattendue est survenue: " + e.getMessage();
+            String errorMessage2 = "Erreur HTTP survenue: \nOpération échouée! Veuillez réessayer.";
+            String generalErrorMessage = "Une erreur inattendue est apparue: " + e.getMessage();
+            if(isExistSignerKey(aliasCle)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),aliasCle);
+            }
             logger.error(generalErrorMessage, e);
-            gestLogs(httpServletRequest, action, "Echec : "+generalErrorMessage);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorMessage2);
         }
     }
 
@@ -1415,8 +1443,8 @@ public class SignataireController {
             signataire.setCniPassport(signataireRequest.getCniPassport());
 
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name_CE"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name_CE"));
             obtenirCertRequest.setInclude_chain(true);
             obtenirCertRequest.setUsername(username);
             obtenirCertRequest.setPassword(signataireRequest.getPassword());
@@ -1427,7 +1455,21 @@ public class SignataireController {
             obtenirCertRequest.setCertificate_request(webServiceConnect(subjectDN, signKey));
 
             HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+            ResponseEntity<String> response = null;
+            try{
+                response  = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+            }catch (Exception e){
+                String errorMessage = "An error has occcured. Veuillez réessayer.";
+                if(isExistSignerKey(alias)){
+                    logger.info("Suppression de la clé existante pour l'alias : {}", alias);
+                    deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+                    System.out.println("Suppression de la clé existante pour l'alias :" +alias);
+                }
+                System.out.println(errorMessage);
+                logger.error(errorMessage);
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
+            }
+
 
             EnrollResponse enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse.class);
             List<String> certificateChain = enrollResponse.getCertificate_chain();
@@ -1460,14 +1502,30 @@ public class SignataireController {
 
             return response;
 
-        } catch (HttpStatusCodeException e) {
-            String errorMessage = "Une erreur HTTP est survenue: " + e.getResponseBodyAsString();
+        } catch (HttpServerErrorException e) {
+            String errorMessage = "Opération échouée! Veuillez réessayer.";
+            if(isExistSignerKey(alias)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+            }
+            logger.error(errorMessage);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorMessage);
+        }
+        catch (HttpStatusCodeException e) {
+            String errorMessage2 = "Erreur HTTP survenue: \nOpération échouée! Veuillez réessayer.";
+            String errorMessage = "Erreur HTTP survenue: " + e.getResponseBodyAsString();
+            if(isExistSignerKey(alias)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+            }
             logger.error(errorMessage, e);
-            return ResponseEntity.status(e.getStatusCode()).body(errorMessage);
+            return ResponseEntity.status(e.getStatusCode()).body(errorMessage2);
         } catch (Exception e) {
-            String generalErrorMessage = "Une erreur inattendue est survenue: " + e.getMessage();
+            String errorMessage2 = "Erreur HTTP survenue: \nOpération échouée! Veuillez réessayer.";
+            String generalErrorMessage = "Une erreur inattendue est apparue: " + e.getMessage();
+            if(isExistSignerKey(alias)){
+                deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
+            }
             logger.error(generalErrorMessage, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(generalErrorMessage);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorMessage2);
         }
     }
 
