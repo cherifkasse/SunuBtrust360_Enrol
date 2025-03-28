@@ -21,6 +21,7 @@ public class OperationSignature {
 
     private Integer idSigner;
     private String codePin;
+    private Integer idCoSigner;
 
     private String signerKey;
     private String dateOperation;

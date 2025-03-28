@@ -262,7 +262,7 @@ public class SignerController {
                 if(isExistSignerKey(alias)){
                     logger.info("Suppression de la clé existante pour l'alias : {}", alias);
                     deleteKeySigner(Integer.parseInt(prop.getProperty("idWorkerPourSupprimerSignerKey")),alias);
-                    System.out.println("Suppression de la clé existante pour l'alias :" +alias);
+                    //System.out.println("Suppression de la clé existante pour l'alias :" +alias);
                 }
                 System.out.println(errorMessage);
                 logger.error(errorMessage);
