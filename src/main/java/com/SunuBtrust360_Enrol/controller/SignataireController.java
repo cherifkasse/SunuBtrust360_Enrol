@@ -17,6 +17,7 @@ import com.SunuBtrust360_Enrol.repository.SignataireRepository;
 import com.SunuBtrust360_Enrol.utils.GestSignataire;
 import com.SunuBtrust360_Enrol.wsdl.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -69,15 +70,14 @@ import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.*;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStoreException;
 import java.security.*;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -269,13 +269,25 @@ public class SignataireController {
         HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
         RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
         ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        EnrollResponse_V2 enrollResponse = objectMapper.readValue(response.getBody(), EnrollResponse_V2.class);
+
         HttpStatus statusCode = (HttpStatus) response.getStatusCode();
         int statusCodeValue = statusCode.value();
         if (statusCodeValue == 201) {
             Date date_creation = new Date();
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             signataire.setDateCreation(sdf.format(date_creation));
-            signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+            String siExpiration7Jours = prop.getProperty("expiration_certificat");
+            if (siExpiration7Jours ==  "1"){
+                signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+            }
+            else{
+                X509Certificate certif = convertStringToX509(enrollResponse.getCertificate());
+                //System.out.println("Total expiration :"+certif.getNotAfter());
+                signataire.setDate_expiration(sdf.format(certif.getNotAfter()));
+            }
+            //signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
             signataireRepository.save(signataire);
         }
 
@@ -378,7 +390,17 @@ public class SignataireController {
                 Date date_creation = new Date();
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 signataire.setDateCreation(sdf.format(date_creation));
-                signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                String siExpiration7Jours = prop.getProperty("expiration_certificat");
+                if (siExpiration7Jours ==  "1"){
+                    signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                }
+                else{
+                    X509Certificate certif = convertStringToX509(enrollResponse.getCertificate());
+                    //System.out.println("Total expiration :"+certif.getNotAfter());
+                    signataire.setDate_expiration(sdf.format(certif.getNotAfter()));
+                }
+                //signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+
                 gst.updateRenouveler(signataire.getCleDeSignature(), signataire.getCode_pin(), sdf.format(date_creation), calculerDateExpiration2(sdf.format(date_creation)));
                 logger.info("Renouvellement réussi avec succès : " + response.getBody());
                 gestLogs(httpServletRequest, action, "Renouvellement réussi");
@@ -1669,6 +1691,15 @@ public class SignataireController {
         }
 
         return nomAChanger;
+    }
+    public static X509Certificate convertStringToX509(String pemCert) throws Exception {
+
+        // Décoder la chaîne Base64 en tableau de bytes
+        byte[] certBytes = Base64.getDecoder().decode(pemCert);
+
+        // Convertir en certificat X.509
+        CertificateFactory factory = CertificateFactory.getInstance("X.509");
+        return (X509Certificate) factory.generateCertificate(new ByteArrayInputStream(certBytes));
     }
 
 
