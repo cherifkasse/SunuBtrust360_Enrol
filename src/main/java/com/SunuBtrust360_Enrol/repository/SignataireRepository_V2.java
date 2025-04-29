@@ -39,6 +39,7 @@ public interface SignataireRepository_V2 extends JpaRepository<Signataire_V2, In
     boolean existsById(int id);
     boolean existsByCni(String cni);
     boolean existsByNomSignataire(String nom);
+    boolean existsByIdSigner(Integer id);
 
 
     @Override

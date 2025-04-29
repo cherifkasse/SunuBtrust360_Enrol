@@ -1046,7 +1046,7 @@ public class SignerController {
     @PostMapping("depot/{idSignataire}")
     public ResponseEntity<String> uploadPieceIdentite(@PathVariable Integer idSignataire,@RequestParam("piece_cni") MultipartFile file){
         // Vérifier si l'ID du signataire est présent dans la table signataire
-        if (!signataireRepository_V2.existsById(idSignataire)) {
+        if (!signataireRepository_V2.existsByIdSigner(idSignataire)) {
             return ResponseEntity.badRequest().body("Ce signataire n'existe pas dans nos bases de donnees!");
         }
         if (file.isEmpty()) {

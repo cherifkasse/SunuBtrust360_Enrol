@@ -17,6 +17,7 @@ import com.SunuBtrust360_Enrol.repository.SignataireRepository;
 import com.SunuBtrust360_Enrol.utils.GestSignataire;
 import com.SunuBtrust360_Enrol.wsdl.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -69,15 +70,14 @@ import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.*;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStoreException;
 import java.security.*;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -86,6 +86,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.SunuBtrust360_Enrol.controller.SignerController.convertStringToX509;
 
 /**
  * @author Cherif KASSE
@@ -222,66 +224,6 @@ public class SignataireController {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////ENROLLER SIGNATAIRE AVEC LA PEREMIERE VERSION//////////////////////////////////////////////////////
-    @Operation(hidden = true)
-    @PostMapping("enroll")
-    @PreAuthorize("hasAnyRole('USER','ADMIN')")
-    public ResponseEntity<?> enrollSignataire(@Valid @RequestBody SignataireRequest signataireRequest) throws Exception {
-        String cle_de_signature = "CLE_" + signataireRequest.getNomSignataire().toUpperCase().replaceAll("\\s+", "_") + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
-        String username = signataireRequest.getNomSignataire() + "_" + signataireRequest.getNom_entreprise().toUpperCase().replaceAll("\\s+", "_");
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
-        Signataire signataire = new Signataire();
-        //////////////Infos pour le signataire/////////////////////////////////
-        if (!validateEmail(signataireRequest.getEmail())) {
-            return ResponseEntity.badRequest().body("Vérifiez le format de l'email");
-        }
-        if (!signataireRepository.findByNomSignataire(signataireRequest.getNomSignataire()).isEmpty() && signataireRepository.findByEmail(signataireRequest.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Vérifiez si vous essayez d'enroller une personne déja existante");
-        }
-        signataire.setNomSignataire(signataireRequest.getNomSignataire());
-        signataire.setCategorie(signataireRequest.getCategorie());
-       // signataire.setApplication_rattachee(separer_idapp_nomapp(signataireRequest.getTrustedApp())[0]);
-        signataire.setNomApplication(separer_idapp_nomapp(signataireRequest.getTrustedApp())[1]);
-        signataire.setCode_pin(encrypterPin(signataireRequest.getCode_pin()));
-        /*if (signataireRepository.findByEmail(signataireRequest.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Vérifiez si vous essayez d'enroller une personne déja existante");
-        }*/
-
-        signataire.setEmail(signataireRequest.getEmail());
-        signataire.setNomEntreprise(signataireRequest.getNom_entreprise());
-        signataire.setCleDeSignature(cle_de_signature);
-
-        //////////////////////////////////////////////////////////////////////
-        //////////////Infos pour obtenir certificat////////////////////////////
-        obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-        obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-        obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
-        obtenirCertRequest.setUsername(username);
-        obtenirCertRequest.setPassword(signataireRequest.getPassword());
-        //obtenirCertRequest.setCertificate_request(prop.getProperty("csr"));
-        String subjectDN = "CN=" + signataireRequest.getNomSignataire() + ",O=" + signataireRequest.getNom_entreprise() + ",C=SN";
-        //System.out.println(Connect_WS(subjectDN));
-        obtenirCertRequest.setCertificate_request(Connect_WS(subjectDN));
-        /////////////////////////////////////////////////////////////////////////
-        /////////////////envoie req pour avoir certificat////////////////////////
-        HttpEntity<ObtenirCertRequest> httpEntity = new HttpEntity<>(obtenirCertRequest, headers);
-        RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
-        ResponseEntity<String> response = restTemplate.postForEntity(prop.getProperty("lien_api_ejbca_enroll"), httpEntity, String.class);
-        HttpStatus statusCode = (HttpStatus) response.getStatusCode();
-        int statusCodeValue = statusCode.value();
-        if (statusCodeValue == 201) {
-            Date date_creation = new Date();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            signataire.setDateCreation(sdf.format(date_creation));
-            signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
-            signataireRepository.save(signataire);
-        }
-
-        /////////////////////////////////////////////////////////////////////////
-        return response;
-    }
 
     ///////////////////////RENOUVELLEMENT PREMIERE VERSION//////////////////////////////////
     @PostMapping("renew")
@@ -377,8 +319,9 @@ public class SignataireController {
             if (statusCodeValue == 201) {
                 Date date_creation = new Date();
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                signataire.setDateCreation(sdf.format(date_creation));
-                signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                setDateSignataire(sdf, signataire, enrollResponse, date_creation);
+                //signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+
                 gst.updateRenouveler(signataire.getCleDeSignature(), signataire.getCode_pin(), sdf.format(date_creation), calculerDateExpiration2(sdf.format(date_creation)));
                 logger.info("Renouvellement réussi avec succès : " + response.getBody());
                 gestLogs(httpServletRequest, action, "Renouvellement réussi");
@@ -1490,8 +1433,8 @@ public class SignataireController {
 
             if (statusCodeValue == 201) {
                 Date date_creation = new Date();
-                signataire.setDateCreation(sdf.format(date_creation));
-                signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+                setDateSignataire(sdf, signataire, enrollResponse, date_creation);
+                //signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
                 signataireRepository.save(signataire);
                 logger.info("Enrollment avec succès: " + response.getBody());
                 gestLogs(httpServletRequest, action, "Enrôlement réussi");
@@ -1526,6 +1469,19 @@ public class SignataireController {
             }
             logger.error(generalErrorMessage, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorMessage2);
+        }
+    }
+
+    private void setDateSignataire(SimpleDateFormat sdf, Signataire signataire, EnrollResponse enrollResponse, Date date_creation) throws Exception {
+        signataire.setDateCreation(sdf.format(date_creation));
+        String siExpiration7Jours = prop.getProperty("expiration_certificat");
+        if (siExpiration7Jours ==  "1"){
+            signataire.setDate_expiration(calculerDateExpiration2(sdf.format(date_creation)));
+        }
+        else{
+            X509Certificate certif = convertStringToX509(enrollResponse.getCertificate());
+            //System.out.println("Total expiration :"+certif.getNotAfter());
+            signataire.setDate_expiration(sdf.format(certif.getNotAfter()));
         }
     }
 
@@ -1669,6 +1625,15 @@ public class SignataireController {
         }
 
         return nomAChanger;
+    }
+    public static X509Certificate convertStringToX509(String pemCert) throws Exception {
+
+        // Décoder la chaîne Base64 en tableau de bytes
+        byte[] certBytes = Base64.getDecoder().decode(pemCert);
+
+        // Convertir en certificat X.509
+        CertificateFactory factory = CertificateFactory.getInstance("X.509");
+        return (X509Certificate) factory.generateCertificate(new ByteArrayInputStream(certBytes));
     }
 
 
