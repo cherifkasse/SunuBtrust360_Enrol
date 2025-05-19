@@ -272,8 +272,8 @@ public class SignataireController {
 
             ObtenirCertRequest obtenirCertRequest = new ObtenirCertRequest();
             obtenirCertRequest.setCertificate_authority_name(prop.getProperty("certificate_authority_name"));
-            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name"));
-            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("end_entity_profile_name"));
+            obtenirCertRequest.setCertificate_profile_name(prop.getProperty("certificate_profile_name_CE"));
+            obtenirCertRequest.setEnd_entity_profile_name(prop.getProperty("certificate_profile_name_CE"));
             obtenirCertRequest.setUsername(username);
             obtenirCertRequest.setInclude_chain(true);
             obtenirCertRequest.setPassword(signataireRequest.getPassword());
@@ -1614,7 +1614,7 @@ public class SignataireController {
 
     public String decouper_nom(String nomAChanger){
         if(nomAChanger.contains(" ")){
-            String[] caract = nomAChanger.split(" ");
+            String[] caract = nomAChanger.split("\\s+");
             nomAChanger = caract[0]+ "_";
             for(int i = 1; i < caract.length ; i++){
                 nomAChanger += caract[i].charAt(0) ;

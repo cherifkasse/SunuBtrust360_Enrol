@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
@@ -118,6 +119,12 @@ public class SignerController {
     @Autowired
     private CertService certService;
 
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     public SignerController(SignataireRepository_V2 signataireRepository, SignataireRepository signataireRepository1, WorkerRepository workerRepository, OperationRepository operationRepository, IdLastSigantaireRepository idLastSigantaireRepository,InfosCertificatRepository infosCertificatRepository) {
         this.signataireRepository_V2 = signataireRepository;
         this.signataireRepository = signataireRepository1;
@@ -168,7 +175,7 @@ public class SignerController {
             @ApiResponse(responseCode = "500", description = "Une erreur interne du serveur s’est produite")
     })
     public ResponseEntity<?> enrollSignataire_V2(@Valid @RequestBody SignataireRequest_V2 signataireRequest, BindingResult bindingResult) throws Exception {
-        RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
+       // RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
         HttpHeaders headers = new HttpHeaders();
         String nomSignataire = signataireRequest.getNomSignataire();
         String idAppAajouter ="";
@@ -363,7 +370,7 @@ public class SignerController {
     }
     @PostMapping("renew")
     public ResponseEntity<?> renewSignataire_V2(@Valid @RequestBody SignataireRequest_V2 signataireRequest, BindingResult bindingResult) throws Exception {
-        RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
+       // RestTemplate restTemplate = new RestTemplate(customFact.getClientHttpRequestFactory());
         HttpHeaders headers = new HttpHeaders();
         String nomSignataire = signataireRequest.getNomSignataire();
         String idAppAajouter ="";
@@ -985,15 +992,9 @@ public class SignerController {
         httpConduit.setTlsClientParameters(tlsCP);
         // Set client certificate information for authentication (if required)
         AuthorizationPolicy authorizationPolicy = httpConduit.getAuthorization();
-        authorizationPolicy.setAuthorizationType(HttpAuthHeader.AUTH_TYPE_BASIC); // Set the appropriate authorization type
+        authorizationPolicy.setAuthorizationType(HttpAuthHeader.AUTH_TYPE_BASIC);
         authorizationPolicy.setUserName(username);
         authorizationPolicy.setPassword("passe");
-
-
-
-
-
-
 
 
     }
@@ -1810,5 +1811,25 @@ public class SignerController {
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
         return (X509Certificate) factory.generateCertificate(new ByteArrayInputStream(certBytes));
     }
+
+
+    @GetMapping("listeUidsParTable/{tableName}")
+    public ResponseEntity<List<String>> getUids(@PathVariable String tableName) {
+        String sql = String.format("SELECT DISTINCT uniq_id_certificate FROM %s", tableName);
+        try {
+            List<String> uids = jdbcTemplate.queryForList(sql, String.class);
+            return ResponseEntity.ok(uids);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Collections.emptyList());
+        }
+    }
+
+
+    @GetMapping("getWorkerByNom")
+    public ResponseEntity<List<Worker>> getWorkersByNom(@RequestParam String nomWorker) {
+        List<Worker> workerList = workerRepository.findWorkersByNomWorker(nomWorker);
+        return ResponseEntity.ok(workerList);
+    }
+
 
 }
